@@ -223,11 +223,16 @@ function sendMessage(inputEl) {
     var text = inputEl.value.trim();
     if (!text) return;
     var user = firebase.auth().currentUser;
-    if (!user) return;
+    
+    // Allow anonymous users to chat with random username
+    var displayName = user ? (user.displayName || user.email || 'Anonymous') : 
+                     ('User_' + Math.random().toString(36).slice(2, 8));
+    var userId = user ? user.uid : ('anon_' + Math.random().toString(36).slice(2, 10));
+    
     db.collection('chatMessages').add({
         text:      text,
-        author:    user.displayName || user.email || 'Anonymous',
-        authorId:  user.uid,
+        author:    displayName,
+        authorId:  userId,
         timestamp: new Date().toISOString()
     }).then(function(){ inputEl.value = ''; })
       .catch(function(err){ console.error('[Chat] send error:', err); });
