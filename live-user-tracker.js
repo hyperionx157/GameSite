@@ -23,13 +23,13 @@
     } else {
         // Firebase not initialized, use placeholder config (will be replaced by GitHub Actions)
         const firebaseConfig = {
-            apiKey:        (typeof process !== 'undefined' && process.env?.FIREBASE_API_KEY) || "YOUR_API_KEY_HERE",
-            authDomain:    (typeof process !== 'undefined' && process.env?.FIREBASE_AUTH_DOMAIN) || "YOUR_AUTH_DOMAIN_HERE",
-            projectId:     (typeof process !== 'undefined' && process.env?.FIREBASE_PROJECT_ID) || "YOUR_PROJECT_ID_HERE",
-            storageBucket:  (typeof process !== 'undefined' && process.env?.FIREBASE_STORAGE_BUCKET) || "YOUR_STORAGE_BUCKET_HERE",
-            messagingSenderId: (typeof process !== 'undefined' && process.env?.FIREBASE_MESSAGING_SENDER_ID) || "YOUR_MESSAGING_SENDER_ID_HERE",
-            appId:         (typeof process !== 'undefined' && process.env?.FIREBASE_APP_ID) || "YOUR_APP_ID_HERE",
-            measurementId: "YOUR_MEASUREMENT_ID_HERE"
+            apiKey:        (typeof process !== 'undefined' && process.env?.FIREBASE_API_KEY) || "AIzaSyDhj564xAhZSR-3sxYcR8WFqVABt0PNCcs",
+            authDomain:    (typeof process !== 'undefined' && process.env?.FIREBASE_AUTH_DOMAIN) || "github-whitelist.firebaseapp.com",
+            projectId:     (typeof process !== 'undefined' && process.env?.FIREBASE_PROJECT_ID) || "github-whitelist",
+            storageBucket:  (typeof process !== 'undefined' && process.env?.FIREBASE_STORAGE_BUCKET) || "github-whitelist.firebasestorage.app",
+            messagingSenderId: (typeof process !== 'undefined' && process.env?.FIREBASE_MESSAGING_SENDER_ID) || "552172120402",
+            appId:         (typeof process !== 'undefined' && process.env?.FIREBASE_APP_ID) || "1:552172120402:web:ae23acc18163d3e1ef728b",
+            measurementId: "G-R0CWMJ8B8E"
         };
 
         try {
