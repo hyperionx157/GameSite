@@ -19,22 +19,27 @@ jobs:
 
       - name: Replace Firebase Config with Real Keys
         run: |
-          # Replace placeholders in live-user-tracker.js with real secrets
-          sed -i 's/"YOUR_API_KEY_HERE"/"${{ secrets.FIREBASE_API_KEY }}"/g' live-user-tracker.js
-          sed -i 's/"YOUR_AUTH_DOMAIN_HERE"/"${{ secrets.FIREBASE_AUTH_DOMAIN }}"/g' live-user-tracker.js
-          sed -i 's/"YOUR_PROJECT_ID_HERE"/"${{ secrets.FIREBASE_PROJECT_ID }}"/g' live-user-tracker.js
-          sed -i 's/"YOUR_STORAGE_BUCKET_HERE"/"${{ secrets.FIREBASE_STORAGE_BUCKET }}"/g' live-user-tracker.js
-          sed -i 's/"YOUR_MESSAGING_SENDER_ID_HERE"/"${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}"/g' live-user-tracker.js
-          sed -i 's/"YOUR_APP_ID_HERE"/"${{ secrets.FIREBASE_APP_ID }}"/g' live-user-tracker.js
-          sed -i 's/"YOUR_MEASUREMENT_ID_HERE"/"${{ secrets.FIREBASE_MEASUREMENT_ID }}"/g' live-user-tracker.js
-          
-          # Also replace process.env references to use the actual values
-          sed -i 's/process\.env\.FIREBASE_API_KEY || "${{ secrets.FIREBASE_API_KEY }}"/"${{ secrets.FIREBASE_API_KEY }}"/g' live-user-tracker.js
-          sed -i 's/process\.env\.FIREBASE_AUTH_DOMAIN || "${{ secrets.FIREBASE_AUTH_DOMAIN }}"/"${{ secrets.FIREBASE_AUTH_DOMAIN }}"/g' live-user-tracker.js
-          sed -i 's/process\.env\.FIREBASE_PROJECT_ID || "${{ secrets.FIREBASE_PROJECT_ID }}"/"${{ secrets.FIREBASE_PROJECT_ID }}"/g' live-user-tracker.js
-          sed -i 's/process\.env\.FIREBASE_STORAGE_BUCKET || "${{ secrets.FIREBASE_STORAGE_BUCKET }}"/"${{ secrets.FIREBASE_STORAGE_BUCKET }}"/g' live-user-tracker.js
-          sed -i 's/process\.env\.FIREBASE_MESSAGING_SENDER_ID || "${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}"/"${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}"/g' live-user-tracker.js
-          sed -i 's/process\.env\.FIREBASE_APP_ID || "${{ secrets.FIREBASE_APP_ID }}"/"${{ secrets.FIREBASE_APP_ID }}"/g' live-user-tracker.js
+          # Use Node.js to safely replace Firebase config with real secrets
+          node -e "
+          const fs = require('fs');
+          const content = fs.readFileSync('live-user-tracker.js', 'utf8');
+          const replaced = content
+            .replace(/\"YOUR_API_KEY_HERE\"/g, '${{ secrets.FIREBASE_API_KEY }}')
+            .replace(/\"YOUR_AUTH_DOMAIN_HERE\"/g, '${{ secrets.FIREBASE_AUTH_DOMAIN }}')
+            .replace(/\"YOUR_PROJECT_ID_HERE\"/g, '${{ secrets.FIREBASE_PROJECT_ID }}')
+            .replace(/\"YOUR_STORAGE_BUCKET_HERE\"/g, '${{ secrets.FIREBASE_STORAGE_BUCKET }}')
+            .replace(/\"YOUR_MESSAGING_SENDER_ID_HERE\"/g, '${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}')
+            .replace(/\"YOUR_APP_ID_HERE\"/g, '${{ secrets.FIREBASE_APP_ID }}')
+            .replace(/\"YOUR_MEASUREMENT_ID_HERE\"/g, '${{ secrets.FIREBASE_MEASUREMENT_ID }}')
+            .replace(/process\.env\.FIREBASE_API_KEY \|\| \"YOUR_API_KEY_HERE\"/g, '${{ secrets.FIREBASE_API_KEY }}')
+            .replace(/process\.env\.FIREBASE_AUTH_DOMAIN \|\| \"YOUR_AUTH_DOMAIN_HERE\"/g, '${{ secrets.FIREBASE_AUTH_DOMAIN }}')
+            .replace(/process\.env\.FIREBASE_PROJECT_ID \|\| \"YOUR_PROJECT_ID_HERE\"/g, '${{ secrets.FIREBASE_PROJECT_ID }}')
+            .replace(/process\.env\.FIREBASE_STORAGE_BUCKET \|\| \"YOUR_STORAGE_BUCKET_HERE\"/g, '${{ secrets.FIREBASE_STORAGE_BUCKET }}')
+            .replace(/process\.env\.FIREBASE_MESSAGING_SENDER_ID \|\| \"YOUR_MESSAGING_SENDER_ID_HERE\"/g, '${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}')
+            .replace(/process\.env\.FIREBASE_APP_ID \|\| \"YOUR_APP_ID_HERE\"/g, '${{ secrets.FIREBASE_APP_ID }}');
+          fs.writeFileSync('live-user-tracker.js', replaced);
+          console.log('Firebase config replaced successfully');
+          "
           
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
