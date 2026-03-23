@@ -19,5 +19,6 @@ Deployed on GitHub Pages with automatic GitHub Actions for secure Firebase confi
 ✅ All branches synchronized  
 ✅ DEV PORTAL branding complete  
 ✅ Secure Firebase configuration  
-✅ Live tracking functional
+✅ Live tracking functional  
+⚠️ GitHub Actions needs troubleshooting
 This is my work in progress for my main game site, testing many things and hoping to release soon
