@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings — Dev Portal</title>
+    <link rel="stylesheet" href="assets/css/Main.css">
+    <link rel="stylesheet" href="assets/css/settings.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.css">
+</head>
+<body>
+
+    <div class="settings-layout">
+
+        <!-- ── Sidebar ── -->
+        <aside class="settings-sidebar">
+            <div class="settings-sidebar-header">
+                <a href="index.html" class="settings-back-btn">
+                    <i class="fas fa-arrow-left"></i> Back to Hub
+                </a>
+                <h2 class="settings-title"><i class="fas fa-cog"></i> Settings</h2>
+            </div>
+            <nav class="settings-nav">
+                <button class="settings-nav-btn active" data-tab="tab-cloak">
+                    <i class="fas fa-mask"></i> Tab Cloaking
+                </button>
+                <button class="settings-nav-btn" data-tab="tab-theme">
+                    <i class="fas fa-palette"></i> Color Theme
+                </button>
+                <button class="settings-nav-btn" data-tab="tab-panic">
+                    <i class="fas fa-exclamation-triangle"></i> Panic Button
+                </button>
+            </nav>
+        </aside>
+
+        <!-- ── Main content ── -->
+        <main class="settings-main">
+
+            <!-- ══ TAB CLOAKING ══ -->
+            <section id="tab-cloak" class="settings-tab active-tab">
+                <div class="settings-section-header">
+                    <h2><i class="fas fa-mask"></i> Tab Cloaking</h2>
+                    <p>Change your browser tab's title and favicon to disguise this site.</p>
+                </div>
+
+                <div class="cloak-presets">
+                    <h3 class="settings-group-label">Quick Presets</h3>
+                    <div class="cloak-grid" id="cloakGrid">
+
+                        <button class="cloak-card" data-title="Dev Portal" data-favicon="🎮" data-favicon-type="emoji">
+                            <div class="cloak-icon">🎮</div>
+                            <span>Dev Portal (Default)</span>
+                        </button>
+
+                        <button class="cloak-card" data-title="Google Docs" data-favicon="https://ssl.gstatic.com/docs/documents/images/kix-favicon7.ico" data-favicon-type="url">
+                            <div class="cloak-icon"><img src="https://ssl.gstatic.com/docs/documents/images/kix-favicon7.ico" onerror="this.style.display='none';this.parentElement.textContent='📄'"></div>
+                            <span>Google Docs</span>
+                        </button>
+
+                        <button class="cloak-card" data-title="Google Classroom" data-favicon="https://www.gstatic.com/classroom/favicon.png" data-favicon-type="url">
+                            <div class="cloak-icon"><img src="https://www.gstatic.com/classroom/favicon.png" onerror="this.style.display='none';this.parentElement.textContent='🏫'"></div>
+                            <span>Google Classroom</span>
+                        </button>
+
+                        <button class="cloak-card" data-title="Google Drive" data-favicon="https://ssl.gstatic.com/images/branding/product/1x/drive_2020q4_32dp.png" data-favicon-type="url">
+                            <div class="cloak-icon"><img src="https://ssl.gstatic.com/images/branding/product/1x/drive_2020q4_32dp.png" onerror="this.style.display='none';this.parentElement.textContent='💾'"></div>
+                            <span>Google Drive</span>
+                        </button>
+
+                        <button class="cloak-card" data-title="Google Slides" data-favicon="https://ssl.gstatic.com/docs/presentations/images/favicon5.ico" data-favicon-type="url">
+                            <div class="cloak-icon"><img src="https://ssl.gstatic.com/docs/presentations/images/favicon5.ico" onerror="this.style.display='none';this.parentElement.textContent='📊'"></div>
+                            <span>Google Slides</span>
+                        </button>
+
+                        <button class="cloak-card" data-title="Khan Academy" data-favicon="https://www.khanacademy.org/favicon.ico" data-favicon-type="url">
+                            <div class="cloak-icon"><img src="https://www.khanacademy.org/favicon.ico" onerror="this.style.display='none';this.parentElement.textContent='📚'"></div>
+                            <span>Khan Academy</span>
+                        </button>
+
+                        <button class="cloak-card" data-title="Schoology" data-favicon="https://asset-cdn.schoology.com/sites/all/themes/schoology_theme/favicon.ico" data-favicon-type="url">
+                            <div class="cloak-icon"><img src="https://asset-cdn.schoology.com/sites/all/themes/schoology_theme/favicon.ico" onerror="this.style.display='none';this.parentElement.textContent='🏫'"></div>
+                            <span>Schoology</span>
+                        </button>
+
+                        <button class="cloak-card" data-title="Canvas" data-favicon="https://du11hjcvx0uqb.cloudfront.net/dist/images/favicon-e10d657a73.ico" data-favicon-type="url">
+                            <div class="cloak-icon"><img src="https://du11hjcvx0uqb.cloudfront.net/dist/images/favicon-e10d657a73.ico" onerror="this.style.display='none';this.parentElement.textContent='📋'"></div>
+                            <span>Canvas</span>
+                        </button>
+
+                        <button class="cloak-card" data-title="Duolingo" data-favicon="https://www.duolingo.com/favicon.ico" data-favicon-type="url">
+                            <div class="cloak-icon"><img src="https://www.duolingo.com/favicon.ico" onerror="this.style.display='none';this.parentElement.textContent='🦜'"></div>
+                            <span>Duolingo</span>
+                        </button>
+
+                        <button class="cloak-card" data-title="Wikipedia" data-favicon="https://en.wikipedia.org/favicon.ico" data-favicon-type="url">
+                            <div class="cloak-icon"><img src="https://en.wikipedia.org/favicon.ico" onerror="this.style.display='none';this.parentElement.textContent='📖'"></div>
+                            <span>Wikipedia</span>
+                        </button>
+
+                    </div>
+                </div>
+
+                <div class="settings-divider"></div>
+
+                <div class="custom-cloak-section">
+                    <h3 class="settings-group-label">Custom Cloak</h3>
+                    <div class="custom-cloak-form">
+                        <div class="form-row">
+                            <label>Tab Title</label>
+                            <input type="text" id="customCloakTitle" class="settings-input" placeholder="e.g. My Homework">
+                        </div>
+                        <div class="form-row">
+                            <label>Favicon URL <span class="label-hint">(leave blank to keep current)</span></label>
+                            <input type="text" id="customCloakFavicon" class="settings-input" placeholder="https://example.com/favicon.ico">
+                        </div>
+                        <button class="settings-btn" id="applyCustomCloak">
+                            <i class="fas fa-check"></i> Apply Custom Cloak
+                        </button>
+                    </div>
+                </div>
+
+                <div class="cloak-status" id="cloakStatus" style="display:none;">
+                    <i class="fas fa-mask"></i>
+                    <span>Currently cloaked as: <strong id="cloakStatusText"></strong></span>
+                    <button class="settings-btn-sm danger" id="removeCloakBtn">Remove Cloak</button>
+                </div>
+            </section>
+
+            <!-- ══ COLOR THEME ══ -->
+            <section id="tab-theme" class="settings-tab">
+                <div class="settings-section-header">
+                    <h2><i class="fas fa-palette"></i> Color Theme</h2>
+                    <p>Choose a color accent theme for the entire hub.</p>
+                </div>
+
+                <div class="theme-grid" id="themeGrid">
+
+                    <button class="theme-card" data-theme="purple"
+                        data-accent="#9b59b6" data-accent2="#8e44ad"
+                        data-bg="#0d0d1a" data-surface="#1a1a33" data-surface2="#22224a"
+                        data-border="rgba(155,89,182,0.22)">
+                        <div class="theme-preview">
+                            <div class="theme-preview-bar" style="background:#9b59b6"></div>
+                            <div class="theme-preview-dots">
+                                <span style="background:#1a1a33"></span>
+                                <span style="background:#22224a"></span>
+                            </div>
+                        </div>
+                        <span>Purple <span class="theme-default-badge">Default</span></span>
+                    </button>
+
+                    <button class="theme-card" data-theme="blue"
+                        data-accent="#3498db" data-accent2="#2980b9"
+                        data-bg="#0a0d1a" data-surface="#0f1a2e" data-surface2="#162240"
+                        data-border="rgba(52,152,219,0.22)">
+                        <div class="theme-preview">
+                            <div class="theme-preview-bar" style="background:#3498db"></div>
+                            <div class="theme-preview-dots">
+                                <span style="background:#0f1a2e"></span>
+                                <span style="background:#162240"></span>
+                            </div>
+                        </div>
+                        <span>Ocean Blue</span>
+                    </button>
+
+                    <button class="theme-card" data-theme="green"
+                        data-accent="#2ecc71" data-accent2="#27ae60"
+                        data-bg="#0a1a0f" data-surface="#0f2818" data-surface2="#163820"
+                        data-border="rgba(46,204,113,0.22)">
+                        <div class="theme-preview">
+                            <div class="theme-preview-bar" style="background:#2ecc71"></div>
+                            <div class="theme-preview-dots">
+                                <span style="background:#0f2818"></span>
+                                <span style="background:#163820"></span>
+                            </div>
+                        </div>
+                        <span>Matrix Green</span>
+                    </button>
+
+                    <button class="theme-card" data-theme="red"
+                        data-accent="#e74c3c" data-accent2="#c0392b"
+                        data-bg="#1a0a0a" data-surface="#2e1010" data-surface2="#3d1616"
+                        data-border="rgba(231,76,60,0.22)">
+                        <div class="theme-preview">
+                            <div class="theme-preview-bar" style="background:#e74c3c"></div>
+                            <div class="theme-preview-dots">
+                                <span style="background:#2e1010"></span>
+                                <span style="background:#3d1616"></span>
+                            </div>
+                        </div>
+                        <span>Blood Red</span>
+                    </button>
+
+                    <button class="theme-card" data-theme="orange"
+                        data-accent="#e67e22" data-accent2="#d35400"
+                        data-bg="#1a0f0a" data-surface="#2e1c0f" data-surface2="#3d2614"
+                        data-border="rgba(230,126,34,0.22)">
+                        <div class="theme-preview">
+                            <div class="theme-preview-bar" style="background:#e67e22"></div>
+                            <div class="theme-preview-dots">
+                                <span style="background:#2e1c0f"></span>
+                                <span style="background:#3d2614"></span>
+                            </div>
+                        </div>
+                        <span>Sunset Orange</span>
+                    </button>
+
+                    <button class="theme-card" data-theme="pink"
+                        data-accent="#e91e8c" data-accent2="#c2185b"
+                        data-bg="#1a0a14" data-surface="#2e0f20" data-surface2="#3d142c"
+                        data-border="rgba(233,30,140,0.22)">
+                        <div class="theme-preview">
+                            <div class="theme-preview-bar" style="background:#e91e8c"></div>
+                            <div class="theme-preview-dots">
+                                <span style="background:#2e0f20"></span>
+                                <span style="background:#3d142c"></span>
+                            </div>
+                        </div>
+                        <span>Hot Pink</span>
+                    </button>
+
+                    <button class="theme-card" data-theme="cyan"
+                        data-accent="#00bcd4" data-accent2="#0097a7"
+                        data-bg="#0a1618" data-surface="#0f2428" data-surface2="#163035"
+                        data-border="rgba(0,188,212,0.22)">
+                        <div class="theme-preview">
+                            <div class="theme-preview-bar" style="background:#00bcd4"></div>
+                            <div class="theme-preview-dots">
+                                <span style="background:#0f2428"></span>
+                                <span style="background:#163035"></span>
+                            </div>
+                        </div>
+                        <span>Cyan</span>
+                    </button>
+
+                    <button class="theme-card" data-theme="white"
+                        data-accent="#f0f0f0" data-accent2="#cccccc"
+                        data-bg="#111111" data-surface="#1e1e1e" data-surface2="#2a2a2a"
+                        data-border="rgba(240,240,240,0.18)">
+                        <div class="theme-preview">
+                            <div class="theme-preview-bar" style="background:#f0f0f0"></div>
+                            <div class="theme-preview-dots">
+                                <span style="background:#1e1e1e"></span>
+                                <span style="background:#2a2a2a"></span>
+                            </div>
+                        </div>
+                        <span>Monochrome</span>
+                    </button>
+
+                </div>
+
+                <div class="settings-divider"></div>
+
+                <div class="custom-theme-section">
+                    <h3 class="settings-group-label">Custom Accent Color</h3>
+                    <div class="custom-theme-form">
+                        <div class="form-row">
+                            <label>Pick a color</label>
+                            <div class="color-picker-wrap">
+                                <input type="color" id="customAccentColor" class="color-picker" value="#9b59b6">
+                                <input type="text"  id="customAccentHex"   class="settings-input small" placeholder="#9b59b6" maxlength="7">
+                            </div>
+                        </div>
+                        <button class="settings-btn" id="applyCustomTheme">
+                            <i class="fas fa-check"></i> Apply Color
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ══ PANIC BUTTON ══ -->
+            <section id="tab-panic" class="settings-tab">
+                <div class="settings-section-header">
+                    <h2><i class="fas fa-exclamation-triangle"></i> Panic Button</h2>
+                    <p>When triggered, instantly redirects your tab to a safe-looking page.</p>
+                </div>
+
+                <div class="panic-info-box">
+                    <i class="fas fa-keyboard"></i>
+                    <div>
+                        <strong>How to trigger:</strong> Press the key you set below anywhere in the hub.
+                        The page will immediately navigate away.
+                    </div>
+                </div>
+
+                <div class="settings-group">
+                    <h3 class="settings-group-label">Panic Key</h3>
+                    <div class="panic-key-row">
+                        <div class="key-capture-wrap">
+                            <input type="text" id="panicKeyDisplay" class="settings-input key-display" placeholder="Click and press a key..." readonly>
+                            <button class="settings-btn-sm" id="clearPanicKey">Clear</button>
+                        </div>
+                        <p class="hint-text">Click the box then press any key to set it. Recommended: <kbd>Escape</kbd> or <kbd>F1</kbd></p>
+                    </div>
+                </div>
+
+                <div class="settings-divider"></div>
+
+                <div class="settings-group">
+                    <h3 class="settings-group-label">Redirect Destination</h3>
+                    <div class="panic-presets-grid" id="panicPresets">
+
+                        <button class="panic-preset-card" data-url="https://classroom.google.com" data-label="Google Classroom">
+                            <div class="panic-preset-icon">🏫</div>
+                            <span>Google Classroom</span>
+                        </button>
+
+                        <button class="panic-preset-card" data-url="https://docs.google.com" data-label="Google Docs">
+                            <div class="panic-preset-icon">📄</div>
+                            <span>Google Docs</span>
+                        </button>
+
+                        <button class="panic-preset-card" data-url="https://drive.google.com" data-label="Google Drive">
+                            <div class="panic-preset-icon">💾</div>
+                            <span>Google Drive</span>
+                        </button>
+
+                        <button class="panic-preset-card" data-url="https://www.khanacademy.org" data-label="Khan Academy">
+                            <div class="panic-preset-icon">📚</div>
+                            <span>Khan Academy</span>
+                        </button>
+
+                        <button class="panic-preset-card" data-url="https://en.wikipedia.org" data-label="Wikipedia">
+                            <div class="panic-preset-icon">📖</div>
+                            <span>Wikipedia</span>
+                        </button>
+
+                        <button class="panic-preset-card" data-url="https://www.google.com" data-label="Google">
+                            <div class="panic-preset-icon">🔍</div>
+                            <span>Google Search</span>
+                        </button>
+
+                    </div>
+
+                    <div class="form-row" style="margin-top:1.2rem;">
+                        <label>Or enter a custom URL</label>
+                        <input type="text" id="customPanicUrl" class="settings-input" placeholder="https://...">
+                    </div>
+                </div>
+
+                <div class="panic-current-status" id="panicStatus">
+                    <div class="status-row">
+                        <span class="status-label">Panic Key:</span>
+                        <kbd id="panicKeyStatus">Not set</kbd>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">Redirect To:</span>
+                        <span id="panicUrlStatus" class="status-value">Not set</span>
+                    </div>
+                </div>
+
+                <button class="settings-btn" id="savePanicSettings" style="margin-top:1.4rem;">
+                    <i class="fas fa-save"></i> Save Panic Settings
+                </button>
+            </section>
+
+        </main>
+    </div>
+
+    <script src="assets/js/settings.js"></script>
+</body>
+</html>

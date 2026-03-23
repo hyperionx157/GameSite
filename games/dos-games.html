@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DOS Games - Game Hub</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- js-dos v8 — local files you downloaded -->
+    <link rel="stylesheet" href="../js-dos.css">
+    <style>
+        *, *::before, *::after { box-sizing:border-box;margin:0;padding:0; }
+        html,body { width:100%;height:100%;background:#060613;font-family:'Segoe UI',Arial,sans-serif;color:#e0e0e0;overflow:hidden; }
+
+        /* Top bar */
+        #topBar { position:fixed;top:0;left:0;right:0;height:46px;background:rgba(8,8,22,0.97);border-bottom:1px solid rgba(155,89,182,0.3);backdrop-filter:blur(12px);display:flex;align-items:center;gap:8px;padding:0 12px;z-index:10000; }
+        #returnBtn { background:rgba(155,89,182,0.15);border:1.5px solid rgba(155,89,182,0.45);border-radius:8px;color:#c39bd3;padding:5px 12px;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s; }
+        #returnBtn:hover { background:rgba(155,89,182,0.3);color:#fff; }
+        .bar-title { font-size:13px;font-weight:700;color:#c39bd3;display:flex;align-items:center;gap:6px; }
+        .dos-badge { background:#0d0d0d;color:#00ff41;font-size:10px;font-weight:800;font-family:monospace;padding:2px 7px;border-radius:4px;border:1px solid #00ff4133; }
+        .bar-spacer { flex:1; }
+        .bar-btn { background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:7px;color:#999;padding:5px 10px;font-size:11px;cursor:pointer;transition:all 0.2s; }
+        .bar-btn:hover { background:rgba(255,255,255,0.1);color:#fff; }
+        #stopBtn { display:none;color:#e74c3c;border-color:rgba(231,76,60,0.3); }
+        #stopBtn:hover { background:rgba(231,76,60,0.15); }
+
+        /* Picker */
+        #picker { position:fixed;top:46px;left:0;right:0;bottom:0;overflow-y:auto;display:flex;flex-direction:column;align-items:center;padding:28px 16px 48px;gap:18px; }
+        .picker-title { font-size:20px;font-weight:900;font-family:monospace;color:#00ff41;letter-spacing:1px;text-shadow:0 0 18px rgba(0,255,65,0.3); }
+        .picker-sub { font-size:13px;color:#555;text-align:center;max-width:500px;line-height:1.7; }
+        .picker-sub code { color:#00ff41;background:rgba(0,255,65,0.07);padding:1px 5px;border-radius:3px; }
+        #dropZone { width:100%;max-width:520px;border:2px dashed rgba(0,255,65,0.25);border-radius:12px;padding:24px 20px;text-align:center;cursor:pointer;transition:all 0.2s;background:rgba(0,255,65,0.02); }
+        #dropZone:hover,#dropZone.over { border-color:rgba(0,255,65,0.6);background:rgba(0,255,65,0.05); }
+        .dz-icon { font-size:28px;margin-bottom:6px; }
+        .dz-main { font-size:14px;font-weight:600;color:#ccc;margin-bottom:4px; }
+        .dz-sub { font-size:12px;color:#555; }
+        .dz-sub span { color:#00ff41; }
+        #fileInput { display:none; }
+        .section-label { font-size:11px;font-weight:700;color:#444;letter-spacing:1.5px;text-transform:uppercase;align-self:flex-start;max-width:520px;width:100%; }
+        #presets { display:flex;flex-direction:column;gap:8px;width:100%;max-width:520px; }
+        .preset { display:flex;align-items:center;gap:14px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:11px 16px;cursor:pointer;transition:all 0.2s;color:#ccc;text-align:left;width:100%; }
+        .preset:hover { background:rgba(0,255,65,0.05);border-color:rgba(0,255,65,0.25);color:#fff; }
+        .p-icon { font-size:22px;flex-shrink:0; }
+        .p-info { display:flex;flex-direction:column;gap:2px;flex:1; }
+        .p-name { font-size:14px;font-weight:700; }
+        .p-meta { font-size:11px;color:#555; }
+        .p-size { font-size:10px;color:#444;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:4px;padding:2px 7px;white-space:nowrap; }
+        .add-tip { font-size:12px;color:#444;text-align:center;max-width:500px;line-height:1.7; }
+        .add-tip code { color:#00ff41;background:rgba(0,255,65,0.07);padding:1px 4px;border-radius:3px; }
+
+        /* Emulator view — js-dos v8 renders its full UI here */
+        #emuView { position:fixed;top:46px;left:0;right:0;bottom:0;display:none; }
+        #dosApp { width:100%;height:100%; }
+    </style>
+</head>
+<body>
+
+<div id="topBar">
+    <button id="returnBtn" onclick="doReturn()">← Return</button>
+    <div class="bar-title"><span class="dos-badge">DOS</span> DOS Games</div>
+    <div class="bar-spacer"></div>
+    <button class="bar-btn" id="stopBtn" onclick="stopAndPick()">✕ Stop Game</button>
+</div>
+
+<!-- Game picker -->
+<div id="picker">
+    <div class="picker-title">C:\GAMES&gt;_</div>
+    <div class="picker-sub">
+        Pick a hosted game, or upload your own <code>.zip</code> (needs a <code>dosbox.conf</code> inside) or a <code>.jsdos</code> bundle.
+    </div>
+
+    <div id="dropZone" onclick="document.getElementById('fileInput').click()">
+        <div class="dz-icon">📁</div>
+        <div class="dz-main">Drop a .zip or .jsdos file here</div>
+        <div class="dz-sub">or click to browse — <span>zip must contain dosbox.conf + game files</span></div>
+    </div>
+    <input type="file" id="fileInput" accept=".zip,.jsdos">
+
+    <div class="section-label">— Hosted Games —</div>
+    <div id="presets">
+        <button class="preset" onclick="launch('dos-games/doom.jsdos')">
+            <span class="p-icon">👹</span>
+            <div class="p-info"><span class="p-name">DOOM (Shareware)</span><span class="p-meta">id Software · 1993 · FPS</span></div>
+            <span class="p-size">~6 MB</span>
+        </button>
+        <button class="preset" onclick="launch('dos-games/wolf3d.jsdos')">
+            <span class="p-icon">🔫</span>
+            <div class="p-info"><span class="p-name">Wolfenstein 3D (Shareware)</span><span class="p-meta">id Software · 1992 · FPS</span></div>
+            <span class="p-size">~1.4 MB</span>
+        </button>
+        <button class="preset" onclick="launch('dos-games/commander-keen.jsdos')">
+            <span class="p-icon">🚀</span>
+            <div class="p-info"><span class="p-name">Commander Keen (Shareware)</span><span class="p-meta">id Software · 1990 · Platformer</span></div>
+            <span class="p-size">~320 KB</span>
+        </button>
+        <button class="preset" onclick="launch('dos-games/prince-of-persia.jsdos')">
+            <span class="p-icon">🗡️</span>
+            <div class="p-info"><span class="p-name">Prince of Persia</span><span class="p-meta">Broderbund · 1989 · Action</span></div>
+            <span class="p-size">~700 KB</span>
+        </button>
+        <button class="preset" onclick="launch('dos-games/jazz-jackrabbit.jsdos')">
+            <span class="p-icon">🐰</span>
+            <div class="p-info"><span class="p-name">Jazz Jackrabbit (Demo)</span><span class="p-meta">Epic MegaGames · 1994 · Platformer</span></div>
+            <span class="p-size">~3 MB</span>
+        </button>
+    </div>
+
+    <div class="add-tip">
+        💡 Put <code>.jsdos</code> bundles in a <code>dos-games/</code> folder at your site root.<br>
+        Free bundles at <strong>js-dos.com/bundles</strong>
+    </div>
+</div>
+
+<!-- js-dos v8 emulator view -->
+<div id="emuView">
+    <div id="dosApp"></div>
+</div>
+
+<!-- js-dos v8 — local file -->
+<script src="../js-dos.js"></script>
+<script>
+var dosInstance = null;
+
+function doReturn() {
+    if (document.getElementById('emuView').style.display !== 'none') {
+        stopAndPick();
+    } else {
+        window.parent.postMessage('returnToMain', '*');
+        if (window.history.length > 1) window.history.back();
+    }
+}
+
+function showPicker() {
+    document.getElementById('picker').style.display  = 'flex';
+    document.getElementById('emuView').style.display = 'none';
+    document.getElementById('stopBtn').style.display = 'none';
+}
+
+function showEmu() {
+    document.getElementById('picker').style.display  = 'none';
+    document.getElementById('emuView').style.display = 'block';
+    document.getElementById('stopBtn').style.display = '';
+}
+
+function stopAndPick() {
+    if (dosInstance) {
+        try { dosInstance.stop(); } catch(e) {}
+        dosInstance = null;
+    }
+    // Clear the dosApp container
+    var app = document.getElementById('dosApp');
+    app.innerHTML = '';
+    showPicker();
+}
+
+function launch(url) {
+    if (typeof Dos === 'undefined') {
+        alert('js-dos failed to load. Make sure js-dos.js is in your site root folder.');
+        return;
+    }
+
+    showEmu();
+    if (dosInstance) { try { dosInstance.stop(); } catch(e) {} dosInstance = null; }
+
+    // Resolve relative paths to site root (one level up from /games/)
+    var resolvedUrl = url;
+    if (!url.startsWith('blob:') && !url.startsWith('http')) {
+        resolvedUrl = window.location.href.replace(/\/games\/[^/?#]*.*$/, '/') + url;
+    }
+
+    var app = document.getElementById('dosApp');
+    app.innerHTML = '';
+
+    // js-dos v8 API
+    dosInstance = Dos(app, {
+        url: resolvedUrl,
+        // Point to local emulators folder if you have it, otherwise use CDN
+        pathPrefix: '../emulators/',
+    });
+}
+
+// File upload
+document.getElementById('fileInput').addEventListener('change', function() {
+    var f = this.files[0];
+    if (f) launch(URL.createObjectURL(f));
+});
+
+var dz = document.getElementById('dropZone');
+dz.addEventListener('dragover',  function(e){ e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', function(){  dz.classList.remove('over'); });
+dz.addEventListener('drop', function(e) {
+    e.preventDefault(); dz.classList.remove('over');
+    var f = e.dataTransfer.files[0];
+    if (f) launch(URL.createObjectURL(f));
+});
+</script>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="../live-user-tracker.js"></script>
+</body>
+</html>

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A Dance of Fire and Ice - Game Hub</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+        }
+        .game-iframe {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            border: none;
+            margin: 0;
+            padding: 0;
+        }
+        #returnBtn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 999999;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            border: 2px solid rgba(155, 89, 182, 0.8);
+            border-radius: 10px;
+            padding: 12px 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+        #returnBtn:hover {
+            background: rgba(155, 89, 182, 0.8);
+            border-color: #9b59b6;
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <iframe class="game-iframe" id="gameFrame" src="https://adancefireandice.github.io/" frameborder="0" allowfullscreen allow="fullscreen"></iframe>
+    
+    <button id="returnBtn" onclick="window.parent.postMessage('returnToMain', '*')">
+        <i class="fas fa-arrow-left"></i> Return to Main
+    </button>
+    
+    <script>
+        // Handle return button click via postMessage to parent
+        document.getElementById('returnBtn').addEventListener('click', function() {
+            window.parent.postMessage('returnToMain', '*');
+        });
+        
+        // Listen for messages from parent if needed
+        window.addEventListener('message', function(event) {
+            if (event.data === 'returnToMain') {
+                // This shouldn't happen, but just in case
+            }
+        });
+    </script>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <!-- Live User Tracker -->
+    <script src="../live-user-tracker.js"></script>
+</body>
+</html>
