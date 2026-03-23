@@ -108,7 +108,7 @@
                 </div>
             </section>
 
-            <!-- ── Games Section ── -->
+            <!-- ── Items Section ── -->
             <section id="sectionLibrary" class="content-section">
                 <div class="section-toolbar">
                     <div class="search-container">
@@ -208,7 +208,7 @@
                         </button>
                     </div>
                     <div id="suggestionForm" class="suggestion-form" style="display:none;">
-                        <h3>Submit New Feedback</h3>
+                        <h3>Submit New Content</h3>
                         <div class="form-group">
                             <label for="gameTitle">Title *</label>
                             <input type="text" id="gameTitle" placeholder="Enter title" required>
@@ -250,7 +250,7 @@
                     <div id="emptySuggestions" class="empty-state" style="display:none;">
                         <i class="fas fa-lightbulb"></i>
                         <h3>No suggestions yet</h3>
-                        <p>Be the first to suggest a game!</p>
+                        <p>Be the first to suggest content!</p>
                     </div>
                 </div>
             </section>
@@ -274,9 +274,9 @@
 
     </div><!-- /mainApp -->
 
-    <!-- ═══ FULLSCREEN GAME OVERLAY ═══ -->
+    <!-- ═══ FULLSCREEN ITEM OVERLAY ═══ -->
     <div id="gameOverlay" class="game-overlay" style="display:none;">
-        <iframe id="gameFrame" class="game-frame" src="" allowfullscreen></iframe>
+        <iframe id="itemFrame" class="game-frame" src="" allowfullscreen></iframe>
 
         <!-- Collapsed mini-menu trigger (press - key or tap the tab) -->
         <div id="gameMenuTab" class="game-menu-tab" title="Press - to open menu">
@@ -285,7 +285,7 @@
 
         <!-- Mini menu panel -->
         <div id="gameMiniMenu" class="game-mini-menu" style="display:none;">
-            <div class="mini-menu-title" id="miniMenuGameTitle"></div>
+            <div class="mini-menu-title" id="miniMenuItemTitle"></div>
             <div class="mini-menu-btns">
                 <button class="mini-menu-btn" id="miniReturnBtn">
                     <i class="fas fa-arrow-left"></i> Return to Portal

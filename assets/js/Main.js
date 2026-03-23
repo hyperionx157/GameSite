@@ -37,7 +37,7 @@ var currentSection  = 'home';
 var sideMenuOpen    = true;
 var miniMenuOpen    = false;
 var gameChatOpen    = false;
-var currentGameKey  = null;
+var currentItemKey = null;
 var allMessages     = [];
 
 // ── Helpers ─────────────────────────────────────────────────────────
@@ -114,25 +114,25 @@ function toggleSideMenu() {
 }
 
 // ── Game loading — fullscreen overlay ───────────────────────────────
-function loadGame(gameKey) {
-    var url = GAME_URLS[gameKey];
+function loadItem(itemKey) {
+    var url = GAME_URLS[itemKey];
     if (!url) { alert('Game not found!'); return; }
 
-    currentGameKey = gameKey;
+    currentItemKey = itemKey;
 
-    var frame   = document.getElementById('gameFrame');
+    var frame   = document.getElementById('itemFrame');
     var overlay = document.getElementById('gameOverlay');
-    var titleEl = document.getElementById('miniMenuGameTitle');
+    var titleEl = document.getElementById('miniMenuItemTitle');
     if (!frame || !overlay) return;
 
     frame.src = url;
-    if (titleEl) titleEl.textContent = '▶ ' + titleCase(gameKey);
+    if (titleEl) titleEl.textContent = '▶ ' + titleCase(itemKey);
 
     overlay.style.display = 'block';
     document.body.style.overflow = 'hidden';
     hideMiniMenu();
     hideGameChat();
-    document.title = titleCase(gameKey) + ' — Dev Portal';
+    document.title = titleCase(itemKey) + ' — Dev Portal';
 }
 
 // ── Mini menu ────────────────────────────────────────────────────────
@@ -149,14 +149,14 @@ function toggleMiniMenu() { miniMenuOpen ? hideMiniMenu() : showMiniMenu(); }
 // ── Return to hub ────────────────────────────────────────────────────
 function returnToHub() {
     var overlay = document.getElementById('gameOverlay');
-    var frame   = document.getElementById('gameFrame');
+    var frame   = document.getElementById('itemFrame');
     if (overlay) overlay.style.display = 'none';
     if (frame)   frame.src = '';
     document.body.style.overflow = '';
     document.title = 'Dev Portal';
     hideMiniMenu();
     hideGameChat();
-    currentGameKey = null;
+    currentItemKey = null;
 }
 
 // ── In-game chat ─────────────────────────────────────────────────────
@@ -263,7 +263,7 @@ async function submitSuggestion() {
     if (!titleEl.value.trim() || !descEl.value.trim()) { alert('Please fill in the required fields.'); return; }
     if (!user) { alert('You must be logged in to submit.'); return; }
     try {
-        await db.collection('gameSuggestions').add({
+        await db.collection('contentSuggestions').add({
             title:       titleEl.value.trim(),
             description: descEl.value.trim(),
             genre:       genreEl ? genreEl.value : '',
@@ -286,7 +286,7 @@ async function loadSuggestions() {
     var sl = document.getElementById('suggestionsList');
     if (sl) sl.innerHTML = '';
     try {
-        var snap = await db.collection('gameSuggestions').orderBy('votes', 'desc').get();
+        var snap = await db.collection('contentSuggestions').orderBy('votes', 'desc').get();
         var list = [];
         snap.forEach(function(doc){ list.push(Object.assign({ id: doc.id }, doc.data())); });
         hideEl('forumLoading');
@@ -321,7 +321,7 @@ async function voteSuggestion(id, currentVotes, hasVoted) {
     var user = firebase.auth().currentUser;
     if (!user) { alert('You must be logged in to vote.'); return; }
     try {
-        var ref = db.collection('gameSuggestions').doc(id);
+        var ref = db.collection('contentSuggestions').doc(id);
         if (hasVoted) {
             await ref.update({ votes: Math.max(0, currentVotes - 1), votedBy: firebase.firestore.FieldValue.arrayRemove(user.uid) });
         } else {
@@ -336,7 +336,7 @@ window.voteSuggestion = voteSuggestion;
 function initGameGrid() {
     document.querySelectorAll('.item-btn').forEach(function(btn){
         btn.addEventListener('click', function(){
-            loadGame(this.getAttribute('data-game'));
+            loadItem(this.getAttribute('data-game'));
         });
     });
     var searchInput = document.getElementById('searchInput');

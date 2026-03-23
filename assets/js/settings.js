@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-// GAME HUB — settings.js
+// DEV PORTAL — settings.js
 // Handles: Tab Cloaking, Color Theme, Panic Button
 // ═══════════════════════════════════════════════════════════════════
 
@@ -81,7 +81,7 @@
         var existing = document.getElementById('gh-dynamic-favicon');
         if (existing) existing.remove();
         // Add back the default emoji favicon
-        applyCloak('Settings — Dev Portal', '🎮', 'emoji', false);
+        applyCloak('Settings — Dev Portal', '📁', 'emoji', false);
         updateCloakStatus(null);
         document.querySelectorAll('.cloak-card').forEach(function (c) {
             c.classList.remove('active');

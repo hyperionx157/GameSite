@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// GAME HUB — live-user-tracker.js
+// DEV PORTAL — live-user-tracker.js
 // Include on every page: <script src="live-user-tracker.js"></script>
 // Requires Firebase SDK to be loaded first.
 // ═══════════════════════════════════════════════════════════════════════════
@@ -93,11 +93,11 @@
         if (title.includes('a dance of fire and ice')) return 'Playing A Dance of Fire and Ice';
         
         // General categories
-        if (path.includes('suggestions')) return 'Viewing Game Suggestions Forum';
+        if (path.includes('suggestions')) return 'Viewing Content Suggestions Forum';
         if (path.includes('profile') || title.includes('profile'))  return 'Viewing Profile';
         if (path.includes('admin')   || title.includes('admin'))    return 'Admin Panel';
         if (path.includes('login')   || title.includes('login'))    return 'Logging In';
-        if (title.includes('game hub') || path === '/' || path.includes('index') || path === '' || path.endsWith('/')) return 'Browsing Game Hub';
+        if (title.includes('dev portal') || path === '/' || path.includes('index') || path === '' || path.endsWith('/')) return 'Browsing Dev Portal';
         return 'Unknown Activity';
     }
 
