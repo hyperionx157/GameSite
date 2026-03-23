@@ -58,6 +58,11 @@ temp/
 *.bak
 *.tmp
 
+# Admin tools - keep local only
+whitelist-manager.html
+*whitelist*
+*admin*
+
 # Keep important files
 !index.html
 !assets/
