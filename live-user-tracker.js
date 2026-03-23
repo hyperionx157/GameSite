@@ -14,24 +14,32 @@
     }
 
     // ── Firebase Configuration ───────────────────────────────────────────────────────────────
-    // Use environment variables in production, fallback to placeholder values
-    const firebaseConfig = {
-        apiKey:        process.env.FIREBASE_API_KEY || "YOUR_API_KEY_HERE",
-        authDomain:    process.env.FIREBASE_AUTH_DOMAIN || "YOUR_AUTH_DOMAIN_HERE",
-        projectId:     process.env.FIREBASE_PROJECT_ID || "YOUR_PROJECT_ID_HERE",
-        storageBucket:  process.env.FIREBASE_STORAGE_BUCKET || "YOUR_STORAGE_BUCKET_HERE",
-        messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "YOUR_MESSAGING_SENDER_ID_HERE",
-        appId:         process.env.FIREBASE_APP_ID || "YOUR_APP_ID_HERE",
-        measurementId: "YOUR_MEASUREMENT_ID_HERE"
-    };
+    // Check if Firebase is already initialized (from Main.js), otherwise use placeholder config
+    let db;
+    
+    if (firebase.apps && firebase.apps.length > 0) {
+        // Firebase already initialized, just get the database
+        db = firebase.firestore();
+    } else {
+        // Firebase not initialized, use placeholder config (will be replaced by GitHub Actions)
+        const firebaseConfig = {
+            apiKey:        (typeof process !== 'undefined' && process.env?.FIREBASE_API_KEY) || "YOUR_API_KEY_HERE",
+            authDomain:    (typeof process !== 'undefined' && process.env?.FIREBASE_AUTH_DOMAIN) || "YOUR_AUTH_DOMAIN_HERE",
+            projectId:     (typeof process !== 'undefined' && process.env?.FIREBASE_PROJECT_ID) || "YOUR_PROJECT_ID_HERE",
+            storageBucket:  (typeof process !== 'undefined' && process.env?.FIREBASE_STORAGE_BUCKET) || "YOUR_STORAGE_BUCKET_HERE",
+            messagingSenderId: (typeof process !== 'undefined' && process.env?.FIREBASE_MESSAGING_SENDER_ID) || "YOUR_MESSAGING_SENDER_ID_HERE",
+            appId:         (typeof process !== 'undefined' && process.env?.FIREBASE_APP_ID) || "YOUR_APP_ID_HERE",
+            measurementId: "YOUR_MEASUREMENT_ID_HERE"
+        };
 
-    try {
-        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-    } catch (e) {
-        // Already initialized — safe to ignore
+        try {
+            if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
+        } catch (e) {
+            console.error('[LiveTracker] Firebase initialization error:', e);
+            return;
+        }
     }
-
-    const db = firebase.firestore();
 
     // ── Session ID (persists for the browser tab) ────────────────────────────
     const SESSION_ID = sessionStorage.getItem('liveTrackerSessionId') || (function () {
