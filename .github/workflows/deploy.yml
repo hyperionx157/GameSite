@@ -19,29 +19,47 @@ jobs:
 
       - name: Replace Firebase Config with Real Keys
         run: |
-          # Create a Node.js script file to handle the replacement safely
+          # Create a simple replacement script that handles special characters
           cat > replace-config.js << 'EOF'
           const fs = require('fs');
-          const content = fs.readFileSync('live-user-tracker.js', 'utf8');
-          const replaced = content
-            .replace(/"YOUR_API_KEY_HERE"/g, process.env.FIREBASE_API_KEY || 'YOUR_API_KEY_HERE')
-            .replace(/"YOUR_AUTH_DOMAIN_HERE"/g, process.env.FIREBASE_AUTH_DOMAIN || 'YOUR_AUTH_DOMAIN_HERE')
-            .replace(/"YOUR_PROJECT_ID_HERE"/g, process.env.FIREBASE_PROJECT_ID || 'YOUR_PROJECT_ID_HERE')
-            .replace(/"YOUR_STORAGE_BUCKET_HERE"/g, process.env.FIREBASE_STORAGE_BUCKET || 'YOUR_STORAGE_BUCKET_HERE')
-            .replace(/"YOUR_MESSAGING_SENDER_ID_HERE"/g, process.env.FIREBASE_MESSAGING_SENDER_ID || 'YOUR_MESSAGING_SENDER_ID_HERE')
-            .replace(/"YOUR_APP_ID_HERE"/g, process.env.FIREBASE_APP_ID || 'YOUR_APP_ID_HERE')
-            .replace(/"YOUR_MEASUREMENT_ID_HERE"/g, process.env.FIREBASE_MEASUREMENT_ID || 'YOUR_MEASUREMENT_ID_HERE')
-            .replace(/process\.env\.FIREBASE_API_KEY \|\| "YOUR_API_KEY_HERE"/g, process.env.FIREBASE_API_KEY || 'YOUR_API_KEY_HERE')
-            .replace(/process\.env\.FIREBASE_AUTH_DOMAIN \|\| "YOUR_AUTH_DOMAIN_HERE"/g, process.env.FIREBASE_AUTH_DOMAIN || 'YOUR_AUTH_DOMAIN_HERE')
-            .replace(/process\.env\.FIREBASE_PROJECT_ID \|\| "YOUR_PROJECT_ID_HERE"/g, process.env.FIREBASE_PROJECT_ID || 'YOUR_PROJECT_ID_HERE')
-            .replace(/process\.env\.FIREBASE_STORAGE_BUCKET \|\| "YOUR_STORAGE_BUCKET_HERE"/g, process.env.FIREBASE_STORAGE_BUCKET || 'YOUR_STORAGE_BUCKET_HERE')
-            .replace(/process\.env\.FIREBASE_MESSAGING_SENDER_ID \|\| "YOUR_MESSAGING_SENDER_ID_HERE"/g, process.env.FIREBASE_MESSAGING_SENDER_ID || 'YOUR_MESSAGING_SENDER_ID_HERE')
-            .replace(/process\.env\.FIREBASE_APP_ID \|\| "YOUR_APP_ID_HERE"/g, process.env.FIREBASE_APP_ID || 'YOUR_APP_ID_HERE');
-          fs.writeFileSync('live-user-tracker.js', replaced);
+          
+          // Read the file
+          let content = fs.readFileSync('live-user-tracker.js', 'utf8');
+          
+          // Get environment variables
+          const firebaseConfig = {
+            apiKey: process.env.FIREBASE_API_KEY || 'YOUR_API_KEY_HERE',
+            authDomain: process.env.FIREBASE_AUTH_DOMAIN || 'YOUR_AUTH_DOMAIN_HERE',
+            projectId: process.env.FIREBASE_PROJECT_ID || 'YOUR_PROJECT_ID_HERE',
+            storageBucket: process.env.FIREBASE_STORAGE_BUCKET || 'YOUR_STORAGE_BUCKET_HERE',
+            messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || 'YOUR_MESSAGING_SENDER_ID_HERE',
+            appId: process.env.FIREBASE_APP_ID || 'YOUR_APP_ID_HERE',
+            measurementId: process.env.FIREBASE_MEASUREMENT_ID || 'YOUR_MEASUREMENT_ID_HERE'
+          };
+          
+          // Replace all placeholders with actual values
+          content = content.replace(/"YOUR_API_KEY_HERE"/g, JSON.stringify(firebaseConfig.apiKey));
+          content = content.replace(/"YOUR_AUTH_DOMAIN_HERE"/g, JSON.stringify(firebaseConfig.authDomain));
+          content = content.replace(/"YOUR_PROJECT_ID_HERE"/g, JSON.stringify(firebaseConfig.projectId));
+          content = content.replace(/"YOUR_STORAGE_BUCKET_HERE"/g, JSON.stringify(firebaseConfig.storageBucket));
+          content = content.replace(/"YOUR_MESSAGING_SENDER_ID_HERE"/g, JSON.stringify(firebaseConfig.messagingSenderId));
+          content = content.replace(/"YOUR_APP_ID_HERE"/g, JSON.stringify(firebaseConfig.appId));
+          content = content.replace(/"YOUR_MEASUREMENT_ID_HERE"/g, JSON.stringify(firebaseConfig.measurementId));
+          
+          // Replace process.env fallbacks
+          content = content.replace(/process\.env\.FIREBASE_API_KEY \|\| "YOUR_API_KEY_HERE"/g, JSON.stringify(firebaseConfig.apiKey));
+          content = content.replace(/process\.env\.FIREBASE_AUTH_DOMAIN \|\| "YOUR_AUTH_DOMAIN_HERE"/g, JSON.stringify(firebaseConfig.authDomain));
+          content = content.replace(/process\.env\.FIREBASE_PROJECT_ID \|\| "YOUR_PROJECT_ID_HERE"/g, JSON.stringify(firebaseConfig.projectId));
+          content = content.replace(/process\.env\.FIREBASE_STORAGE_BUCKET \|\| "YOUR_STORAGE_BUCKET_HERE"/g, JSON.stringify(firebaseConfig.storageBucket));
+          content = content.replace(/process\.env\.FIREBASE_MESSAGING_SENDER_ID \|\| "YOUR_MESSAGING_SENDER_ID_HERE"/g, JSON.stringify(firebaseConfig.messagingSenderId));
+          content = content.replace(/process\.env\.FIREBASE_APP_ID \|\| "YOUR_APP_ID_HERE"/g, JSON.stringify(firebaseConfig.appId));
+          
+          // Write the file back
+          fs.writeFileSync('live-user-tracker.js', content);
           console.log('Firebase config replaced successfully');
           EOF
           
-          # Run the script with environment variables
+          # Run the script with all environment variables
           FIREBASE_API_KEY="${{ secrets.FIREBASE_API_KEY }}" \
           FIREBASE_AUTH_DOMAIN="${{ secrets.FIREBASE_AUTH_DOMAIN }}" \
           FIREBASE_PROJECT_ID="${{ secrets.FIREBASE_PROJECT_ID }}" \
