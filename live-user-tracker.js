@@ -13,32 +13,16 @@
         return;
     }
 
-    // ── Firebase Configuration ───────────────────────────────────────────────────────────────
-    // Check if Firebase is already initialized (from Main.js), otherwise use placeholder config
+    // ── Firebase Configuration ───────────────────────────────────────────────────────
+    // Always reuse Firebase from Main.js - don't initialize independently
     let db;
     
     if (firebase.apps && firebase.apps.length > 0) {
-        // Firebase already initialized, just get the database
+        // Firebase already initialized in Main.js, just get the database
         db = firebase.firestore();
     } else {
-        // Firebase not initialized, use placeholder config (will be replaced by GitHub Actions)
-        const firebaseConfig = {
-            apiKey:        (typeof process !== 'undefined' && process.env?.FIREBASE_API_KEY) || "AIzaSyDhj564xAhZSR-3sxYcR8WFqVABt0PNCcs",
-            authDomain:    (typeof process !== 'undefined' && process.env?.FIREBASE_AUTH_DOMAIN) || "github-whitelist.firebaseapp.com",
-            projectId:     (typeof process !== 'undefined' && process.env?.FIREBASE_PROJECT_ID) || "github-whitelist",
-            storageBucket:  (typeof process !== 'undefined' && process.env?.FIREBASE_STORAGE_BUCKET) || "github-whitelist.firebasestorage.app",
-            messagingSenderId: (typeof process !== 'undefined' && process.env?.FIREBASE_MESSAGING_SENDER_ID) || "552172120402",
-            appId:         (typeof process !== 'undefined' && process.env?.FIREBASE_APP_ID) || "1:552172120402:web:ae23acc18163d3e1ef728b",
-            measurementId: "G-R0CWMJ8B8E"
-        };
-
-        try {
-            if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-            db = firebase.firestore();
-        } catch (e) {
-            console.error('[LiveTracker] Firebase initialization error:', e);
-            return;
-        }
+        console.error('[LiveTracker] Firebase not initialized in Main.js');
+        return;
     }
 
     // ── Session ID (persists for the browser tab) ────────────────────────────
