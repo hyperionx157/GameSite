@@ -26,10 +26,28 @@ const GAME_URLS = {
 };
 
 // ── Firebase db — assigned inside DOMContentLoaded ──────────────────
+// Firebase configuration and initialization
+const firebaseConfig = {
+    apiKey: "AIzaSyDhj564xAhZSR-3sxYcR8WFqVABt0PNCcs",
+    authDomain: "github-whitelist.firebaseapp.com",
+    projectId: "github-whitelist",
+    storageBucket: "github-whitelist.firebasestorage.app",
+    messagingSenderId: "552172120402",
+    appId: "1:552172120402:web:ae23acc18163d3e1ef728b",
+    measurementId: "G-R0CWMJ8B8E"
+};
+
+// Initialize Firebase
+try {
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+} catch (e) {
+    console.error('[Main] Firebase initialization error:', e);
+}
+
 // live-user-tracker.js (loaded WITHOUT defer) already calls
 // firebase.initializeApp(). Main.js loads WITH defer, so by
 // DOMContentLoaded the SDK is ready. We just grab Firestore.
-var db = null;
+var db = firebase.firestore();
 
 // ── Globals ─────────────────────────────────────────────────────────
 var currentUserData = null;
@@ -389,9 +407,7 @@ function initAuth() {
 // ── DOMContentLoaded ──────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function(){
 
-    // Firebase was initialized by live-user-tracker.js (no defer, runs first).
-    // Main.js has defer so this runs after the page is parsed and SDK is ready.
-    // Just get the Firestore reference — do NOT call initializeApp again.
+    // Firebase is initialized above, just get the Firestore reference
     db = firebase.firestore();
 
     // Side menu toggle
