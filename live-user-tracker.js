@@ -36,8 +36,14 @@
     function resolveUser() {
         const raw = localStorage.getItem('currentUser') || sessionStorage.getItem('currentUser');
         if (raw) {
-            try { return JSON.parse(raw); } catch (e) { /* ignore */ }
+            try { 
+                const parsed = JSON.parse(raw);
+                if (parsed && (parsed.username || parsed.displayName)) {
+                    return parsed;
+                }
+            } catch (e) { /* ignore */ }
         }
+        // Always return a valid user object
         return {
             username:    'anon_' + Math.random().toString(36).slice(2, 8),
             displayName: 'Anonymous'
@@ -45,6 +51,14 @@
     }
 
     let currentUser = resolveUser();
+
+// Safety check - ensure currentUser is never undefined
+if (!currentUser || !currentUser.username) {
+    currentUser = {
+        username:    'anon_' + Math.random().toString(36).slice(2, 8),
+        displayName: 'Anonymous'
+    };
+}
 
     // Re-resolve whenever auth state changes (works with Firebase Auth)
     if (firebase.auth) {
