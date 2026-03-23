@@ -14,15 +14,15 @@
     }
 
     // ── Firebase Configuration ───────────────────────────────────────────────────────────────
-    // Use environment variables in production, fallback to development values
+    // Use environment variables in production, fallback to placeholder values
     const firebaseConfig = {
-        apiKey:        process.env.FIREBASE_API_KEY || "AIzaSyDhj564xAhZSR-3sxYcR8WFqVABt0PNCcs",
-        authDomain:    process.env.FIREBASE_AUTH_DOMAIN || "github-whitelist.firebaseapp.com",
-        projectId:     process.env.FIREBASE_PROJECT_ID || "github-whitelist",
-        storageBucket:  process.env.FIREBASE_STORAGE_BUCKET || "github-whitelist.firebasestorage.app",
-        messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "552172120402",
-        appId:         process.env.FIREBASE_APP_ID || "1:552172120402:web:ae23acc18163d3e1ef728b",
-        measurementId: "G-R0CWMJ8B8E"
+        apiKey:        process.env.FIREBASE_API_KEY || "YOUR_API_KEY_HERE",
+        authDomain:    process.env.FIREBASE_AUTH_DOMAIN || "YOUR_AUTH_DOMAIN_HERE",
+        projectId:     process.env.FIREBASE_PROJECT_ID || "YOUR_PROJECT_ID_HERE",
+        storageBucket:  process.env.FIREBASE_STORAGE_BUCKET || "YOUR_STORAGE_BUCKET_HERE",
+        messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "YOUR_MESSAGING_SENDER_ID_HERE",
+        appId:         process.env.FIREBASE_APP_ID || "YOUR_APP_ID_HERE",
+        measurementId: "YOUR_MEASUREMENT_ID_HERE"
     };
 
     try {
