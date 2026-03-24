@@ -87,6 +87,7 @@ if (!currentUser || !currentUser.username) {
         if (title.includes('schoolboy runaway')) return 'Playing SchoolBoy Runaway';
         
         // Check for HTML5 games
+        if (title.includes('getaway shootout')) return 'Playing Getaway Shootout';
         if (title.includes('space invaders')) return 'Playing Space Invaders';
         if (title.includes('galaga')) return 'Playing Galaga';
         if (title.includes('asteroids')) return 'Playing Asteroids';

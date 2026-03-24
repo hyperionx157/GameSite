@@ -22,7 +22,8 @@ const GAME_URLS = {
     'cookie-clicker':    'games/html5/cookieclicker.html',
     'retro-bowl':        'games/html5/retrobowl.html',
     'ovo':               'games/html5/ovo.html',
-    'adofai':            'games/html5/adofai.html'
+    'adofai':            'games/html5/adofai.html',
+    'getaway-shootout':  'games/html5/getaway-shootout.html'
 };
 
 // ── Firebase db — assigned inside DOMContentLoaded ──────────────────
