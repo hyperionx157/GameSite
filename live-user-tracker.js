@@ -85,6 +85,7 @@ if (!currentUser || !currentUser.username) {
         if (title.includes('minesweeperplus')) return 'Playing MinesweeperPlus';
         if (title.includes('pizza tower')) return 'Playing Pizza Tower';
         if (title.includes('schoolboy runaway')) return 'Playing SchoolBoy Runaway';
+        if (title.includes('pokemon emerald')) return 'Playing Pokemon Emerald';
         
         // Check for HTML5 games
         if (title.includes('getaway shootout')) return 'Playing Getaway Shootout';

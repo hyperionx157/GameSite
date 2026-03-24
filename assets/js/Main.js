@@ -13,6 +13,7 @@ const GAME_URLS = {
     'minesweeperplus':   CLOUDFLARE_R2_BASE + 'minesweeperplus/MinesweeperPlus.html',
     'pizza-tower':       CLOUDFLARE_R2_BASE + 'pizza-tower/index.html',
     'schoolboy-runaway': CLOUDFLARE_R2_BASE + 'schoolboy-runaway/index.html',
+    'pokemon-emerald':   'games/EmuGames/Pokemon - Emerald Version (U).html',
     'space-invaders':    'https://www.crazygames.com/embed/space-invaders',
     'galaga':            'https://www.retrogames.com/play-online/galaga.html',
     'asteroids':         'https://www.crazygames.com/embed/asteroids',
