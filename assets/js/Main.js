@@ -14,6 +14,7 @@ const GAME_URLS = {
     'pizza-tower':       CLOUDFLARE_R2_BASE + 'pizza-tower/index.html',
     'schoolboy-runaway': CLOUDFLARE_R2_BASE + 'schoolboy-runaway/index.html',
     'pokemon-emerald':   'games/EmuGames/Pokemon - Emerald Version (U).html',
+    'need-for-speed':    'games/EmuGames/Need for Speed - High Stakes (U).html',
     'space-invaders':    'https://www.crazygames.com/embed/space-invaders',
     'galaga':            'https://www.retrogames.com/play-online/galaga.html',
     'asteroids':         'https://www.crazygames.com/embed/asteroids',
