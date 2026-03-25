@@ -16,7 +16,6 @@ const GAME_URLS = {
     'pokemon-emerald':   'games/EmuGames/Pokemon - Emerald Version (U).html',
     'need-for-speed':    'games/EmuGames/Need for Speed - Most Wanted (USA, Europe) (En,Fr,De,It).html',
     'call-of-duty':      'games/EmuGames/Call of Duty - Modern Warfare 3 - Defiance (USA).html',
-    'eaglercraft':       'games/html5/eaglercraft.html',
     'space-invaders':    'https://www.crazygames.com/embed/space-invaders',
     'galaga':            'https://www.retrogames.com/play-online/galaga.html',
     'asteroids':         'https://www.crazygames.com/embed/asteroids',
