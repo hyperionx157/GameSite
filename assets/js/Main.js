@@ -138,7 +138,10 @@ function toggleSideMenu() {
 
 // ── Game loading — fullscreen overlay ───────────────────────────────
 function loadItem(itemKey) {
+    console.log('Loading game:', itemKey);
+    console.log('Available games:', Object.keys(GAME_URLS));
     var url = GAME_URLS[itemKey];
+    console.log('Game URL:', url);
     if (!url) { alert('Game not found!'); return; }
 
     currentItemKey = itemKey;
