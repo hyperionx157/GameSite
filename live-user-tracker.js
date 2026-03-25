@@ -86,6 +86,8 @@ if (!currentUser || !currentUser.username) {
         if (title.includes('pizza tower')) return 'Playing Pizza Tower';
         if (title.includes('schoolboy runaway')) return 'Playing SchoolBoy Runaway';
         if (title.includes('pokemon emerald')) return 'Playing Pokemon Emerald';
+        if (title.includes('need for speed')) return 'Playing Need for Speed';
+        if (title.includes('call of duty')) return 'Playing Call of Duty';
         
         // Check for HTML5 games
         if (title.includes('getaway shootout')) return 'Playing Getaway Shootout';

@@ -15,6 +15,8 @@ const GAME_URLS = {
     'schoolboy-runaway': CLOUDFLARE_R2_BASE + 'schoolboy-runaway/index.html',
     'pokemon-emerald':   'games/EmuGames/Pokemon - Emerald Version (U).html',
     'need-for-speed':    'games/EmuGames/Need for Speed - Most Wanted (USA, Europe) (En,Fr,De,It).html',
+    'call-of-duty':      'games/EmuGames/Call of Duty - Modern Warfare 3 - Defiance (USA).html',
+    'eaglercraft':       'games/html5/eaglercraft.html',
     'space-invaders':    'https://www.crazygames.com/embed/space-invaders',
     'galaga':            'https://www.retrogames.com/play-online/galaga.html',
     'asteroids':         'https://www.crazygames.com/embed/asteroids',
@@ -25,7 +27,8 @@ const GAME_URLS = {
     'retro-bowl':        'games/html5/retrobowl.html',
     'ovo':               'games/html5/ovo.html',
     'adofai':            'games/html5/adofai.html',
-    'getaway-shootout':  'games/html5/getaway-shootout.html'
+    'getaway-shootout':  'games/html5/getaway-shootout.html',
+    'eaglercraft':       'games/html5/eaglercraft.html'
 };
 
 // ── Firebase db — assigned inside DOMContentLoaded ──────────────────
