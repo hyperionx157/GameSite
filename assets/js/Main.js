@@ -365,8 +365,13 @@ window.voteSuggestion = voteSuggestion;
 
 // ── Game grid ────────────────────────────────────────────────────────
 function initGameGrid() {
-    document.querySelectorAll('.item-btn').forEach(function(btn){
+    console.log('Initializing game grid...');
+    var buttons = document.querySelectorAll('.item-btn');
+    console.log('Found buttons:', buttons.length);
+    buttons.forEach(function(btn){
+        console.log('Button data-game:', btn.getAttribute('data-game'));
         btn.addEventListener('click', function(){
+            console.log('Button clicked:', this.getAttribute('data-game'));
             loadItem(this.getAttribute('data-game'));
         });
     });
