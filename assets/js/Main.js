@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 // ── Config ─────────────────────────────────────────────────────────
-const CLOUDFLARE_R2_BASE = 'https://files.hyperionx157.com/';
+const CLOUDFLARE_R2_BASE = 'https://assets.hyperionx15.com/';
 
 const GAME_URLS = {
     'baldi-plus':        CLOUDFLARE_R2_BASE + 'baldi-plus/index.html',
@@ -12,6 +12,9 @@ const GAME_URLS = {
     'hollow-knight':     CLOUDFLARE_R2_BASE + 'hollow-knight-main/index.html',
     'minesweeperplus':   CLOUDFLARE_R2_BASE + 'minesweeperplus/MinesweeperPlus.html',
     'pizza-tower':       CLOUDFLARE_R2_BASE + 'pizza-tower/index.html',
+    'omori-fixed':       CLOUDFLARE_R2_BASE + 'omori-fixed/index.html',
+    'ddlc-web':          CLOUDFLARE_R2_BASE + 'ddlc-web-main/index.html',
+    'undertale-yellow':  CLOUDFLARE_R2_BASE + 'undertale-yellow/index.html',
     'schoolboy-runaway': CLOUDFLARE_R2_BASE + 'schoolboy-runaway/index.html',
     'pokemon-emerald':   'games/EmuGames/Pokemon - Emerald Version (U).html',
     'need-for-speed':    'games/EmuGames/Need for Speed - Most Wanted (USA, Europe) (En,Fr,De,It).html',
@@ -138,10 +141,7 @@ function toggleSideMenu() {
 
 // ── Game loading — fullscreen overlay ───────────────────────────────
 function loadItem(itemKey) {
-    console.log('Loading game:', itemKey);
-    console.log('Available games:', Object.keys(GAME_URLS));
     var url = GAME_URLS[itemKey];
-    console.log('Game URL:', url);
     if (!url) { alert('Game not found!'); return; }
 
     currentItemKey = itemKey;
@@ -365,13 +365,8 @@ window.voteSuggestion = voteSuggestion;
 
 // ── Game grid ────────────────────────────────────────────────────────
 function initGameGrid() {
-    console.log('Initializing game grid...');
-    var buttons = document.querySelectorAll('.item-btn');
-    console.log('Found buttons:', buttons.length);
-    buttons.forEach(function(btn){
-        console.log('Button data-game:', btn.getAttribute('data-game'));
+    document.querySelectorAll('.item-btn').forEach(function(btn){
         btn.addEventListener('click', function(){
-            console.log('Button clicked:', this.getAttribute('data-game'));
             loadItem(this.getAttribute('data-game'));
         });
     });

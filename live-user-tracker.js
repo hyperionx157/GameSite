@@ -101,6 +101,7 @@ if (!currentUser || !currentUser.username) {
         if (title.includes('retro bowl')) return 'Playing Retro Bowl';
         if (title.includes('ovo')) return 'Playing OVO';
         if (title.includes('a dance of fire and ice')) return 'Playing A Dance of Fire and Ice';
+        if (title.includes('eaglercraft')) return 'Playing Eaglercraft';
         
         // General categories
         if (path.includes('suggestions')) return 'Viewing Content Suggestions Forum';
