@@ -34,7 +34,6 @@ const GAME_URLS = {
 };
 
 // ── Firebase db — assigned inside DOMContentLoaded ──────────────────
-// Firebase configuration and initialization
 const firebaseConfig = {
     apiKey: "AIzaSyDhj564xAhZSR-3sxYcR8WFqVABt0PNCcs",
     authDomain: "github-whitelist.firebaseapp.com",
@@ -52,9 +51,6 @@ try {
     console.error('[Main] Firebase initialization error:', e);
 }
 
-// live-user-tracker.js (loaded WITHOUT defer) already calls
-// firebase.initializeApp(). Main.js loads WITH defer, so by
-// DOMContentLoaded the SDK is ready. We just grab Firestore.
 var db = firebase.firestore();
 
 // ── Globals ─────────────────────────────────────────────────────────
@@ -72,29 +68,90 @@ function getInitials(name) {
     return name.trim().split(/\s+/).map(function(w){ return w[0]; })
         .join('').toUpperCase().slice(0, 2);
 }
+
 function escHtml(str) {
     var d = document.createElement('div');
     d.textContent = str;
     return d.innerHTML;
 }
-function fmtTime(dateStr) {
-    var d = new Date(dateStr), now = new Date();
-    var m = Math.floor((now - d) / 60000);
+
+// Updated fmtTime to handle Firestore Timestamps
+function fmtTime(timestamp) {
+    let date;
+    
+    // Handle Firestore Timestamp objects
+    if (timestamp && typeof timestamp.toDate === 'function') {
+        date = timestamp.toDate();
+    } 
+    // Handle ISO string
+    else if (typeof timestamp === 'string') {
+        date = new Date(timestamp);
+    }
+    // Handle regular Date object
+    else if (timestamp instanceof Date) {
+        date = timestamp;
+    }
+    else {
+        return 'recently';
+    }
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+        return 'recently';
+    }
+    
+    const now = new Date();
+    const m = Math.floor((now - date) / 60000);
+    
     if (m < 1)    return 'just now';
     if (m < 60)   return m + 'm ago';
     if (m < 1440) return Math.floor(m / 60) + 'h ago';
     return Math.floor(m / 1440) + 'd ago';
 }
+
 function titleCase(str) {
     return str.replace(/-/g, ' ').replace(/\b\w/g, function(c){ return c.toUpperCase(); });
 }
+
 function showEl(id, display) {
     var e = document.getElementById(id);
     if (e) e.style.display = display || 'block';
 }
+
 function hideEl(id) {
     var e = document.getElementById(id);
     if (e) e.style.display = 'none';
+}
+
+// Migration function for existing string timestamps (call once if needed)
+async function migrateExistingMessages() {
+    try {
+        const snapshot = await db.collection('chatMessages').get();
+        const batch = db.batch();
+        let count = 0;
+        
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            // If timestamp is a string (ISO format), convert it
+            if (typeof data.timestamp === 'string') {
+                const timestampDate = new Date(data.timestamp);
+                // Only convert if it's a valid date
+                if (!isNaN(timestampDate.getTime())) {
+                    batch.update(doc.ref, {
+                        timestamp: firebase.firestore.Timestamp.fromDate(timestampDate)
+                    });
+                    count++;
+                }
+            }
+        });
+        
+        if (count > 0) {
+            await batch.commit();
+            console.log(`[Migration] Converted ${count} messages to proper Timestamp format`);
+        }
+    } catch(e) {
+        console.error('[Migration] Error converting messages:', e);
+    }
 }
 
 // ── Section switching ────────────────────────────────────────────────
@@ -226,13 +283,13 @@ function initChat() {
     if (gInput) gInput.addEventListener('keypress', function(e){ if (e.key === 'Enter') sendMessage(gInput); });
 }
 
+// UPDATED: Send message with proper Firestore Timestamp
 function sendMessage(inputEl) {
     if (!inputEl) return;
     var text = inputEl.value.trim();
     if (!text) return;
     var user = firebase.auth().currentUser;
     
-    // Allow anonymous users to chat with random username
     var displayName = user ? (user.displayName || user.email || 'Anonymous') : 
                      ('User_' + Math.random().toString(36).slice(2, 8));
     var userId = user ? user.uid : ('anon_' + Math.random().toString(36).slice(2, 10));
@@ -241,11 +298,16 @@ function sendMessage(inputEl) {
         text:      text,
         author:    displayName,
         authorId:  userId,
-        timestamp: new Date().toISOString()
-    }).then(function(){ inputEl.value = ''; })
-      .catch(function(err){ console.error('[Chat] send error:', err); });
+        timestamp: firebase.firestore.FieldValue.serverTimestamp() // Fixed: using proper Timestamp
+    }).then(function(){ 
+        inputEl.value = ''; 
+    }).catch(function(err){ 
+        console.error('[Chat] send error:', err);
+        alert('Failed to send message. Please try again.');
+    });
 }
 
+// UPDATED: Render messages with proper timestamp handling
 function renderChatMessages() {
     var user  = firebase.auth().currentUser;
     var myUid = user ? user.uid : null;
@@ -285,6 +347,7 @@ function initForum() {
     if (submitBtn) submitBtn.addEventListener('click', submitSuggestion);
 }
 
+// UPDATED: Submit suggestion with proper Firestore Timestamp
 async function submitSuggestion() {
     var titleEl = document.getElementById('gameTitle');
     var descEl  = document.getElementById('gameDescription');
@@ -303,13 +366,16 @@ async function submitSuggestion() {
             authorId:    user.uid,
             votes:       0,
             votedBy:     [],
-            createdAt:   new Date().toISOString()
+            createdAt:   firebase.firestore.FieldValue.serverTimestamp() // Fixed: using proper Timestamp
         });
         alert('Suggestion submitted!');
         hideEl('suggestionForm');
         titleEl.value = ''; descEl.value = '';
         loadSuggestions();
-    } catch(e) { console.error(e); alert('Error submitting suggestion.'); }
+    } catch(e) { 
+        console.error(e); 
+        alert('Error submitting suggestion.'); 
+    }
 }
 
 async function loadSuggestions() {
@@ -323,7 +389,10 @@ async function loadSuggestions() {
         hideEl('forumLoading');
         if (list.length === 0) { showEl('emptySuggestions'); return; }
         renderSuggestions(list);
-    } catch(e) { console.error(e); hideEl('forumLoading'); }
+    } catch(e) { 
+        console.error(e); 
+        hideEl('forumLoading'); 
+    }
 }
 
 function renderSuggestions(list) {
@@ -359,7 +428,10 @@ async function voteSuggestion(id, currentVotes, hasVoted) {
             await ref.update({ votes: currentVotes + 1, votedBy: firebase.firestore.FieldValue.arrayUnion(user.uid) });
         }
         loadSuggestions();
-    } catch(e) { alert('Error updating vote.'); }
+    } catch(e) { 
+        console.error(e);
+        alert('Error updating vote.'); 
+    }
 }
 window.voteSuggestion = voteSuggestion;
 
@@ -411,6 +483,9 @@ function initAuth() {
                         initForum();
                         initGameGrid();
                         switchSection('home');
+                        
+                        // Optional: Run migration once to convert old messages (uncomment if needed)
+                        // migrateExistingMessages();
                     } else {
                         // User not whitelisted, sign them out
                         firebase.auth().signOut();
@@ -462,8 +537,6 @@ document.addEventListener('DOMContentLoaded', function(){
     }
 
     // Login
-    // Accounts are stored as username@gamehub.local in Firebase.
-    // If the user types a plain username (no @), we append that domain.
     var loginBtn      = document.getElementById('loginBtn');
     var emailInput    = document.getElementById('emailInput');
     var passwordInput = document.getElementById('passwordInput');
@@ -472,7 +545,6 @@ document.addEventListener('DOMContentLoaded', function(){
             var raw  = emailInput    ? emailInput.value.trim() : '';
             var pass = passwordInput ? passwordInput.value     : '';
             if (!raw || !pass) { alert('Please enter your username and password.'); return; }
-            // If it looks like a plain username (no @), append the domain used at signup
             var email = raw.includes('@') ? raw : raw + '@gamehub.local';
             firebase.auth().signInWithEmailAndPassword(email, pass)
                 .catch(function(e){ alert('Login failed: ' + e.message); });
@@ -483,7 +555,6 @@ document.addEventListener('DOMContentLoaded', function(){
     }
 
     // Signup
-    // Use @gamehub.local to stay consistent with all existing accounts.
     var signupBtn      = document.getElementById('signupBtn');
     var signupRealName = document.getElementById('signupRealName');
     var signupName     = document.getElementById('signupName');
