@@ -123,7 +123,7 @@ function hideEl(id) {
     if (e) e.style.display = 'none';
 }
 
-// Migration function for existing string timestamps (call once if needed)
+// Migration function for existing string timestamps
 async function migrateExistingMessages() {
     try {
         const snapshot = await db.collection('chatMessages').get();
@@ -132,10 +132,8 @@ async function migrateExistingMessages() {
         
         snapshot.forEach(doc => {
             const data = doc.data();
-            // If timestamp is a string (ISO format), convert it
             if (typeof data.timestamp === 'string') {
                 const timestampDate = new Date(data.timestamp);
-                // Only convert if it's a valid date
                 if (!isNaN(timestampDate.getTime())) {
                     batch.update(doc.ref, {
                         timestamp: firebase.firestore.Timestamp.fromDate(timestampDate)
@@ -264,8 +262,9 @@ function initChat() {
             renderChatMessages();
         });
 
-    db.collection('presence').onSnapshot(function(snapshot) {
-        var label = snapshot.size + ' online';
+    db.collection('liveUsers').onSnapshot(function(snapshot) {
+        var onlineCount = snapshot.size;
+        var label = onlineCount + ' online';
         var c1 = document.getElementById('chatOnlineCount');
         var c2 = document.getElementById('gameChatOnline');
         if (c1) c1.textContent = label;
@@ -283,7 +282,7 @@ function initChat() {
     if (gInput) gInput.addEventListener('keypress', function(e){ if (e.key === 'Enter') sendMessage(gInput); });
 }
 
-// UPDATED: Send message with proper Firestore Timestamp
+// Send message with proper Firestore Timestamp
 function sendMessage(inputEl) {
     if (!inputEl) return;
     var text = inputEl.value.trim();
@@ -298,7 +297,7 @@ function sendMessage(inputEl) {
         text:      text,
         author:    displayName,
         authorId:  userId,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp() // Fixed: using proper Timestamp
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
     }).then(function(){ 
         inputEl.value = ''; 
     }).catch(function(err){ 
@@ -307,7 +306,7 @@ function sendMessage(inputEl) {
     });
 }
 
-// UPDATED: Render messages with proper timestamp handling
+// Render messages with proper timestamp handling
 function renderChatMessages() {
     var user  = firebase.auth().currentUser;
     var myUid = user ? user.uid : null;
@@ -347,7 +346,7 @@ function initForum() {
     if (submitBtn) submitBtn.addEventListener('click', submitSuggestion);
 }
 
-// UPDATED: Submit suggestion with proper Firestore Timestamp
+// Submit suggestion with proper Firestore Timestamp
 async function submitSuggestion() {
     var titleEl = document.getElementById('gameTitle');
     var descEl  = document.getElementById('gameDescription');
@@ -366,7 +365,7 @@ async function submitSuggestion() {
             authorId:    user.uid,
             votes:       0,
             votedBy:     [],
-            createdAt:   firebase.firestore.FieldValue.serverTimestamp() // Fixed: using proper Timestamp
+            createdAt:   firebase.firestore.FieldValue.serverTimestamp()
         });
         alert('Suggestion submitted!');
         hideEl('suggestionForm');
@@ -469,12 +468,31 @@ function updateUserProfile(user) {
 function initAuth() {
     firebase.auth().onAuthStateChanged(function(user){
         if (user) {
-            // Check if user is whitelisted
-            db.collection('whitelist').doc(user.uid).get()
+            // FIXED: Check whitelist from settings document
+            db.collection('settings').doc('whitelist').get()
                 .then(function(doc) {
-                    if (doc.exists && doc.data().allowed) {
-                        currentUserData = { uid: user.uid, email: user.email, displayName: user.displayName || user.email };
+                    var whitelist = doc.exists && doc.data().approvedUsers ? doc.data().approvedUsers : [];
+                    var username = user.email ? user.email.replace('@gamehub.local', '') : user.uid;
+                    
+                    if (whitelist.includes(username)) {
+                        // Store user details
+                        currentUserData = { 
+                            uid: user.uid, 
+                            email: user.email, 
+                            displayName: user.displayName || username,
+                            username: username
+                        };
                         localStorage.setItem('currentUser', JSON.stringify(currentUserData));
+                        
+                        // Save user to users collection for reference
+                        db.collection('users').doc(user.uid).set({
+                            uid: user.uid,
+                            username: username,
+                            displayName: user.displayName || username,
+                            email: user.email,
+                            lastLogin: firebase.firestore.FieldValue.serverTimestamp()
+                        }, { merge: true });
+                        
                         updateUserProfile(user);
                         showEl('mainApp');
                         hideEl('loginHub');
@@ -484,18 +502,17 @@ function initAuth() {
                         initGameGrid();
                         switchSection('home');
                         
-                        // Optional: Run migration once to convert old messages (uncomment if needed)
+                        // Optional: Run migration once
                         // migrateExistingMessages();
                     } else {
-                        // User not whitelisted, sign them out
+                        // User not whitelisted - sign them out and remove account
                         firebase.auth().signOut();
-                        alert('Your account is not on the whitelist. Please contact an administrator.');
+                        alert('Your account is pending approval. Please wait for an administrator to approve your account.');
                         hideEl('loadingOverlay');
                     }
                 })
                 .catch(function(error) {
                     console.error('Whitelist check error:', error);
-                    // On error, sign out for safety
                     firebase.auth().signOut();
                     alert('Authentication error. Please try again.');
                     hideEl('loadingOverlay');
@@ -547,14 +564,20 @@ document.addEventListener('DOMContentLoaded', function(){
             if (!raw || !pass) { alert('Please enter your username and password.'); return; }
             var email = raw.includes('@') ? raw : raw + '@gamehub.local';
             firebase.auth().signInWithEmailAndPassword(email, pass)
-                .catch(function(e){ alert('Login failed: ' + e.message); });
+                .catch(function(e){ 
+                    if (e.code === 'auth/user-not-found') {
+                        alert('Account not found. Please sign up first.');
+                    } else {
+                        alert('Login failed: ' + e.message);
+                    }
+                });
         });
         [emailInput, passwordInput].forEach(function(el){
             if (el) el.addEventListener('keypress', function(e){ if (e.key === 'Enter') loginBtn.click(); });
         });
     }
 
-    // Signup
+    // Signup - FIXED: Add user to pending requests
     var signupBtn      = document.getElementById('signupBtn');
     var signupRealName = document.getElementById('signupRealName');
     var signupName     = document.getElementById('signupName');
@@ -565,11 +588,61 @@ document.addEventListener('DOMContentLoaded', function(){
             var name = signupName     ? signupName.value.trim()     : '';
             var pass = signupPassword ? signupPassword.value        : '';
             if (!name || !pass) { alert('Please fill in all fields.'); return; }
+            if (pass.length < 6) { alert('Password must be at least 6 characters.'); return; }
+            
             var email = name + '@gamehub.local';
-            firebase.auth().createUserWithEmailAndPassword(email, pass)
-                .then(function(cred){ return cred.user.updateProfile({ displayName: real || name }); })
-                .then(function(){ alert('Account created! You are now logged in.'); })
-                .catch(function(e){ alert('Signup failed: ' + e.message); });
+            
+            // Check if username already exists in whitelist or pending
+            db.collection('settings').doc('whitelist').get()
+                .then(function(whitelistDoc) {
+                    var whitelist = whitelistDoc.exists ? whitelistDoc.data().approvedUsers : [];
+                    if (whitelist.includes(name)) {
+                        alert('Username already exists. Please choose another.');
+                        return;
+                    }
+                    
+                    // Check pending requests
+                    return db.collection('pendingRequests').doc(name).get().then(function(pendingDoc) {
+                        if (pendingDoc.exists) {
+                            alert('This username is already pending approval.');
+                            return;
+                        }
+                        
+                        // Create the account
+                        return firebase.auth().createUserWithEmailAndPassword(email, pass)
+                            .then(function(cred) {
+                                return cred.user.updateProfile({ displayName: real || name })
+                                    .then(function() {
+                                        // Add to pending requests
+                                        return db.collection('pendingRequests').doc(name).set({
+                                            username: name,
+                                            displayName: real || name,
+                                            realName: real,
+                                            uid: cred.user.uid,
+                                            email: email,
+                                            requestedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                                            status: 'pending'
+                                        });
+                                    });
+                            })
+                            .then(function() {
+                                // Sign out immediately since they need approval
+                                firebase.auth().signOut();
+                                alert('Account created! Your account is pending approval. An administrator will review your request.');
+                                // Clear form
+                                signupRealName.value = '';
+                                signupName.value = '';
+                                signupPassword.value = '';
+                                // Switch back to login form
+                                showEl('loginForm');
+                                hideEl('signupForm');
+                            });
+                    });
+                })
+                .catch(function(e) { 
+                    console.error('Signup error:', e);
+                    alert('Signup failed: ' + e.message); 
+                });
         });
     }
 

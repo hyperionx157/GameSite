@@ -3,6 +3,30 @@
 // Handles: Tab Cloaking, Color Theme, Panic Button
 // ═══════════════════════════════════════════════════════════════════
 
+// Ensure Firebase is initialized before trying to use it
+if (typeof firebase === 'undefined') {
+    console.error('[Settings] Firebase not loaded!');
+} else {
+    // Wait for Firebase to be ready if not already
+    if (!firebase.apps.length) {
+        const firebaseConfig = {
+            apiKey: "AIzaSyDhj564xAhZSR-3sxYcR8WFqVABt0PNCcs",
+            authDomain: "github-whitelist.firebaseapp.com",
+            projectId: "github-whitelist",
+            storageBucket: "github-whitelist.firebasestorage.app",
+            messagingSenderId: "552172120402",
+            appId: "1:552172120402:web:ae23acc18163d3e1ef728b",
+            measurementId: "G-R0CWMJ8B8E"
+        };
+        firebase.initializeApp(firebaseConfig);
+    }
+}
+
+(function () {
+    'use strict';
+    // ... rest of your settings.js code ...
+})();
+
 (function () {
     'use strict';
 
