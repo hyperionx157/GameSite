@@ -68,7 +68,6 @@
         .debug-card { border-color: rgba(255,255,255,0.1); }
         .debug-card h3 { color: #888; }
 
-        /* Live indicator pulse */
         .live-dot {
             display: inline-block;
             width: 8px; height: 8px;
@@ -83,7 +82,6 @@
             50%      { opacity:0.8; transform:scale(1.2); box-shadow:0 0 0 4px rgba(40,167,69,0); }
         }
 
-        /* User rows */
         .user-row {
             display: flex;
             justify-content: space-between;
@@ -108,7 +106,6 @@
         .user-sub   { font-size: 0.78rem; color: #888; margin-top: 2px; }
         .user-real  { font-size: 0.8rem; color: #aaa; font-style: italic; }
 
-        /* Online status badge */
         .status-dot {
             display: inline-block;
             width: 8px; height: 8px;
@@ -121,7 +118,6 @@
 
         .empty-row { color: #666; font-size: 0.9rem; padding: 0.75rem 0.5rem; }
 
-        /* Buttons */
         .btn {
             padding: 0.45rem 0.9rem;
             border-radius: 7px;
@@ -168,7 +164,6 @@
             margin-top: 0.75rem;
         }
 
-        /* Chat panel inside manager */
         .chat-log {
             max-height: 320px;
             overflow-y: auto;
@@ -210,7 +205,6 @@
         }
         .chat-admin-input input:focus { border-color: #3498db; }
 
-        /* Count badge */
         .count-badge {
             background: rgba(155,89,182,0.3);
             border-radius: 20px;
@@ -258,13 +252,13 @@
         <div id="connectionStatus">Connecting to Firebase...</div>
     </div>
 
-    <!-- Approved Users -->
+    <!-- Approved Users - NOW USES users COLLECTION -->
     <div class="card">
         <h3>✅ Approved Users <span id="approvedCount" class="count-badge">0</span></h3>
         <div id="approvedList"><div class="empty-row">Loading...</div></div>
         <div class="add-row">
             <input type="text" id="newUsername" placeholder="Add username to whitelist...">
-            <button class="btn btn-success" onclick="addUser()">+ Add</button>
+            <button class="btn btn-success" id="addUserBtn">+ Add</button>
         </div>
     </div>
 
@@ -273,11 +267,11 @@
         <h3>🕐 Pending Requests <span id="pendingCount" class="count-badge">0</span></h3>
         <div id="pendingList"><div class="empty-row">Loading...</div></div>
         <div class="btn-row">
-            <button class="btn btn-danger" onclick="clearAllPending()">🗑 Clear All Pending</button>
+            <button class="btn btn-danger" id="clearAllPendingBtn">🗑 Clear All Pending</button>
         </div>
     </div>
 
-    <!-- Live Users — fully auto-refreshes via onSnapshot -->
+    <!-- Live Users -->
     <div class="card admin-card">
         <h3>
             🔴 Live Users
@@ -286,29 +280,29 @@
         </h3>
         <div id="liveList"><div class="empty-row">No users currently online.</div></div>
         <div class="btn-row">
-            <button class="btn btn-danger" onclick="kickAllUsers()">⚡ Kick All</button>
+            <button class="btn btn-danger" id="kickAllUsersBtn">⚡ Kick All</button>
         </div>
     </div>
 
-    <!-- Chat Monitor + Admin Chat -->
+    <!-- Chat Monitor -->
     <div class="card chat-card">
         <h3>💬 Live Chat <span class="live-dot" title="Auto-refreshing"></span> <span id="chatCount" class="count-badge blue">0 messages</span></h3>
         <div id="chatLog" class="chat-log"><div class="empty-row">No messages yet.</div></div>
         <div class="chat-admin-input">
             <input type="text" id="adminChatInput" placeholder="Send message as Admin..." maxlength="300">
-            <button class="btn btn-blue" onclick="sendAdminMessage()">Send</button>
+            <button class="btn btn-blue" id="sendAdminMsgBtn">Send</button>
         </div>
         <div class="btn-row">
-            <button class="btn btn-danger" onclick="clearAllChat()">🗑 Clear All Chat</button>
+            <button class="btn btn-danger" id="clearAllChatBtn">🗑 Clear All Chat</button>
         </div>
     </div>
 
-    <!-- Content Suggestions Monitor -->
+    <!-- Content Suggestions -->
     <div class="card">
         <h3>💡 Content Suggestions <span class="live-dot" title="Auto-refreshing"></span> <span id="suggestionsCount" class="count-badge">0 suggestions</span></h3>
         <div id="suggestionsList"><div class="empty-row">No suggestions yet.</div></div>
         <div class="btn-row">
-            <button class="btn btn-danger" onclick="clearAllSuggestions()">🗑 Clear All Suggestions</button>
+            <button class="btn btn-danger" id="clearAllSuggestionsBtn">🗑 Clear All Suggestions</button>
         </div>
     </div>
 
@@ -316,8 +310,8 @@
     <div class="card debug-card">
         <h3>🛠 Debug Tools</h3>
         <div class="btn-row">
-            <button class="btn btn-secondary" onclick="createTestRequest()">Create Test Request</button>
-            <button class="btn btn-secondary" onclick="refreshLiveUsers()">Refresh Live Count</button>
+            <button class="btn btn-secondary" id="createTestRequestBtn">Create Test Request</button>
+            <button class="btn btn-secondary" id="refreshBtn">Refresh All</button>
         </div>
         <div id="debugOutput"></div>
     </div>
@@ -341,16 +335,16 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 // ─── State ────────────────────────────────────────────────────────────────────
-let approvedUsers   = [];
+let approvedUsers = [];      // Now stores user documents from users collection
 let pendingRequests = [];
-let liveUsers       = [];
-let userDetails     = {}; // uid/username -> full user doc data
+let liveUsers = [];
 
-// ─── Avatar helpers ───────────────────────────────────────────────────────────
+// ─── Helper Functions ─────────────────────────────────────────────────────────
 function getInitials(name) {
     if (!name) return '?';
     return name.trim().split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2);
 }
+
 function avatarColor(name) {
     const colors = ['#9b59b6','#8e44ad','#3498db','#2ecc71','#e67e22','#e74c3c','#1abc9c','#f39c12'];
     let i = 0;
@@ -358,415 +352,15 @@ function avatarColor(name) {
     return colors[i % colors.length];
 }
 
-// ─── Load all user details from Firestore ─────────────────────────────────────
-async function loadUserDetails() {
-    try {
-        const snap = await db.collection('users').get();
-        snap.forEach(doc => {
-            const d = doc.data();
-            userDetails[d.username] = d;
-            userDetails[doc.id]     = d; // also index by uid
-        });
-    } catch(e) { console.warn('Could not load user details:', e); }
-}
-loadUserDetails();
-
-// ─── Connection test ──────────────────────────────────────────────────────────
-db.collection('settings').doc('whitelist').get()
-    .then(() => setStatus('Connected to Firebase ✓ · Live updates active', 'connected'))
-    .catch(e => setStatus('Connection failed: ' + e.message, 'error'));
-
-function setStatus(msg, cls) {
-    const el = document.getElementById('connectionStatus');
-    el.textContent = msg;
-    el.className   = cls || '';
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// REAL-TIME LISTENERS — no manual refresh needed
-// ═══════════════════════════════════════════════════════════════════════════════
-
-// ─── Whitelist ────────────────────────────────────────────────────────────────
-db.collection('settings').doc('whitelist').onSnapshot(doc => {
-    if (!doc.exists) return;
-    approvedUsers = doc.data().approvedUsers || [];
-    renderApproved();
-    setStatus('Connected · ' + approvedUsers.length + ' approved users · Live updates active', 'connected');
-}, err => setStatus('Listener error: ' + err.message, 'error'));
-
-// ─── Pending requests ─────────────────────────────────────────────────────────
-db.collection('pendingRequests').onSnapshot(snap => {
-    pendingRequests = [];
-    snap.forEach(doc => {
-        const d = doc.data();
-        pendingRequests.push({
-            id:          doc.id,
-            username:    d.username    || doc.id,
-            displayName: d.displayName || doc.id,
-            realName:    d.realName    || '',
-            requestedAt: d.requestedAt || ''
-        });
-    });
-    renderPending();
-}, err => console.error('Pending listener:', err));
-
-// ─── Live users — fully automatic ─────────────────────────────────────────────
-db.collection('liveUsers').onSnapshot(snap => {
-    const now = new Date();
-    liveUsers = [];
-    snap.forEach(doc => {
-        const d        = doc.data();
-        const lastSeen = d.lastSeen ? d.lastSeen.toDate() : now;
-        const diff     = (now - lastSeen) / 1000;
-        if (diff > 300) return; // offline > 5 min
-        // Prefer data from liveUsers doc, fall back to userDetails
-        const details  = userDetails[d.username] || userDetails[d.uid] || {};
-        liveUsers.push({
-            id:          doc.id,
-            uid:         d.uid          || '',
-            username:    d.username     || 'unknown',
-            displayName: d.displayName  || details.displayName || d.username || 'Unknown',
-            realName:    d.realName     || details.realName    || '',
-            activity:    d.activity     || 'Browsing',
-            page:        d.page         || '—',
-            lastSeen,
-            status:      diff > 60 ? 'idle' : 'online'
-        });
-    });
-    renderLive();
-}, err => console.error('Live users listener:', err));
-
-// ─── Chat — real-time ─────────────────────────────────────────────────────────
-db.collection('chatMessages')
-    .orderBy('timestamp', 'asc')
-    .limitToLast(80)
-    .onSnapshot(snap => {
-        const log = document.getElementById('chatLog');
-        const countEl = document.getElementById('chatCount');
-        if (countEl) countEl.textContent = snap.size + ' messages';
-        if (!snap.size) { log.innerHTML = '<div class="empty-row">No messages yet.</div>'; return; }
-
-        log.innerHTML = '';
-        snap.forEach(doc => {
-            const m    = doc.data();
-            const name = m.displayName || m.author || m.username || 'User';
-            const color= avatarColor(name);
-            const ts   = m.timestamp ? timeAgo(m.timestamp.toDate ? m.timestamp.toDate() : new Date(m.timestamp)) : '';
-            const realLabel = m.realName ? '<span class="chat-log-real">(' + m.realName + ')</span>' : '';
-
-            const el   = document.createElement('div');
-            el.className = 'chat-log-msg';
-            el.innerHTML =
-                '<div class="chat-log-avatar" style="background:' + color + ';">' + getInitials(name) + '</div>' +
-                '<div class="chat-log-body">' +
-                    '<div><span class="chat-log-author">' + escHtml(name) + '</span>' + realLabel + '</div>' +
-                    '<div class="chat-log-text">' + escHtml(m.text) + '</div>' +
-                    '<div class="chat-log-ts">' + ts + '</div>' +
-                '</div>' +
-                '<button class="btn btn-danger" style="font-size:0.72rem;padding:0.3rem 0.6rem;" onclick="deleteChatMsg(\'' + doc.id + '\')">✕</button>';
-            log.appendChild(el);
-        });
-        log.scrollTop = log.scrollHeight;
-    }, err => console.error('Chat listener:', err));
-
-// ─── Content Suggestions — real-time ───────────────────────────────────────────
-db.collection('contentSuggestions')
-    .orderBy('timestamp', 'desc')
-    .limitToLast(50)
-    .onSnapshot(snap => {
-        const listEl = document.getElementById('suggestionsList');
-        const countEl = document.getElementById('suggestionsCount');
-        if (countEl) countEl.textContent = snap.size + ' suggestions';
-        if (!snap.size) { 
-            listEl.innerHTML = '<div class="empty-row">No suggestions yet.</div>'; 
-            return; 
-        }
-
-        listEl.innerHTML = '';
-        snap.forEach(doc => {
-            const s = doc.data();
-            const name = s.displayName || s.username || 'Anonymous';
-            const color = avatarColor(name);
-            const ts = s.timestamp ? timeAgo(s.timestamp.toDate ? s.timestamp.toDate() : new Date(s.timestamp)) : '';
-            const votes = s.votes || 0;
-            
-            const el = document.createElement('div');
-            el.className = 'user-row';
-            el.innerHTML =
-                '<div class="user-avatar" style="background:' + color + ';">' + getInitials(name) + '</div>' +
-                '<div class="user-info-block">' +
-                    '<div class="user-name">' + escHtml(s.title || 'No title') + '</div>' +
-                    '<div class="user-sub">by ' + escHtml(name) + ' · ' + votes + ' votes · ' + ts + '</div>' +
-                    (s.description ? '<div class="user-real">' + escHtml(s.description.substring(0, 100)) + (s.description.length > 100 ? '...' : '') + '</div>' : '') +
-                '</div>' +
-                '<div class="action-pair">' +
-                    '<button class="btn btn-danger" onclick="deleteSuggestion(\'' + doc.id + '\')">✕ Delete</button>' +
-                '</div>';
-            listEl.appendChild(el);
-        });
-    }, err => console.error('Suggestions listener:', err));
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// RENDER FUNCTIONS
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function renderApproved() {
-    const el      = document.getElementById('approvedList');
-    const countEl = document.getElementById('approvedCount');
-    if (countEl) countEl.textContent = approvedUsers.length;
-
-    if (!approvedUsers.length) {
-        el.innerHTML = '<div class="empty-row">No approved users.</div>';
-        return;
-    }
-    el.innerHTML = approvedUsers.map(u => {
-        const details = userDetails[u] || {};
-        const display = details.displayName || u;
-        const real    = details.realName    || '';
-        const color   = avatarColor(display);
-        const initials= getInitials(display);
-        return '<div class="user-row">' +
-            '<div class="user-avatar" style="background:' + color + ';">' + initials + '</div>' +
-            '<div class="user-info-block">' +
-                '<div class="user-name">' + escHtml(display) + '</div>' +
-                (real ? '<div class="user-real">' + escHtml(real) + '</div>' : '') +
-                '<div class="user-sub">@' + escHtml(u) + '</div>' +
-            '</div>' +
-            '<button class="btn btn-danger" onclick="removeUser(\'' + u + '\')">Remove</button>' +
-        '</div>';
-    }).join('');
-}
-
-function renderPending() {
-    const el      = document.getElementById('pendingList');
-    const countEl = document.getElementById('pendingCount');
-    if (countEl) countEl.textContent = pendingRequests.length;
-
-    if (!pendingRequests.length) {
-        el.innerHTML = '<div class="empty-row">No pending requests.</div>';
-        return;
-    }
-    el.innerHTML = pendingRequests.map(r => {
-        const color   = avatarColor(r.displayName);
-        const initials= getInitials(r.displayName);
-        const dateStr = r.requestedAt ? new Date(r.requestedAt).toLocaleString() : '';
-        return '<div class="user-row">' +
-            '<div class="user-avatar" style="background:' + color + ';">' + initials + '</div>' +
-            '<div class="user-info-block">' +
-                '<div class="user-name">' + escHtml(r.displayName) + '</div>' +
-                (r.realName ? '<div class="user-real">' + escHtml(r.realName) + '</div>' : '') +
-                '<div class="user-sub">@' + escHtml(r.username) + (dateStr ? ' · ' + dateStr : '') + '</div>' +
-            '</div>' +
-            '<div class="action-pair">' +
-                '<button class="btn btn-success" onclick="approveUser(\'' + r.username + '\')">✓ Approve</button>' +
-                '<button class="btn btn-danger"  onclick="denyUser(\''    + r.username + '\')">✗ Deny</button>' +
-            '</div>' +
-        '</div>';
-    }).join('');
-}
-
-function renderLive() {
-    const el      = document.getElementById('liveList');
-    const countEl = document.getElementById('liveCount');
-    if (countEl) countEl.textContent = liveUsers.length + ' online';
-
-    if (!liveUsers.length) {
-        el.innerHTML = '<div class="empty-row">No users currently online.</div>';
-        return;
-    }
-    liveUsers.sort((a, b) => b.lastSeen - a.lastSeen);
-    el.innerHTML = liveUsers.map(u => {
-        const color   = avatarColor(u.displayName);
-        const initials= getInitials(u.displayName);
-        const statusCls = u.status === 'online' ? 'status-online' : 'status-idle';
-        return '<div class="user-row">' +
-            '<div class="user-avatar" style="background:' + color + ';">' + initials + '</div>' +
-            '<div class="user-info-block">' +
-                '<div class="user-name">' +
-                    '<span class="status-dot ' + statusCls + '"></span>' +
-                    escHtml(u.displayName) +
-                '</div>' +
-                (u.realName ? '<div class="user-real">' + escHtml(u.realName) + '</div>' : '') +
-                '<div class="user-sub">@' + escHtml(u.username) + ' · ' + u.activity + ' · ' + timeAgo(u.lastSeen) + '</div>' +
-            '</div>' +
-            '<button class="btn btn-kick" onclick="kickUser(\'' + u.id + '\',\'' + u.username + '\')">Kick</button>' +
-        '</div>';
-    }).join('');
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// ACTIONS
-// ═══════════════════════════════════════════════════════════════════════════════
-
-async function addUser() {
-    const input    = document.getElementById('newUsername');
-    const username = input.value.trim();
-    if (!username) { toast('Please enter a username.', 'error'); return; }
-    if (approvedUsers.includes(username)) { toast('User already exists.', 'error'); return; }
-    const newList = approvedUsers.concat([username]);
-    await db.collection('settings').doc('whitelist').update({
-        approvedUsers: newList,
-        lastUpdated:   new Date().toISOString()
-    });
-    input.value = '';
-    toast(username + ' added to whitelist.', 'success');
-}
-
-async function removeUser(username) {
-    if (!confirm('Remove ' + username + ' from the whitelist?')) return;
-    const newList = approvedUsers.filter(u => u !== username);
-    await db.collection('settings').doc('whitelist').update({
-        approvedUsers: newList,
-        lastUpdated:   new Date().toISOString()
-    });
-    try {
-        const q = await db.collection('users').where('username', '==', username).get();
-        q.forEach(doc => doc.ref.delete());
-    } catch(e) { console.warn('Could not delete user doc:', e); }
-    toast(username + ' removed from whitelist.', 'success');
-}
-
-async function approveUser(username) {
-    const newList = approvedUsers.concat([username]);
-    await db.collection('settings').doc('whitelist').update({
-        approvedUsers: newList,
-        lastUpdated:   new Date().toISOString()
-    });
-    await db.collection('pendingRequests').doc(username).delete();
-    toast(username + ' approved! They can now sign in.', 'success');
-}
-
-async function denyUser(username) {
-    if (!confirm('Deny request from ' + username + '?')) return;
-    await db.collection('pendingRequests').doc(username).delete();
-    toast(username + ' denied.', 'error');
-}
-
-async function kickUser(userId, username) {
-    if (!confirm('Kick ' + username + '?')) return;
-    await db.collection('kickSignals').doc(userId).set({
-        kicked: true, kickedBy: 'Admin',
-        reason: 'Manual kick by admin',
-        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    await db.collection('liveUsers').doc(userId).delete();
-    toast(username + ' has been kicked.', 'success');
-    setTimeout(() => db.collection('kickSignals').doc(userId).delete().catch(()=>{}), 30000);
-}
-
-async function kickAllUsers() {
-    if (!confirm('Kick ALL ' + liveUsers.length + ' users?')) return;
-    const batch  = db.batch();
-    const kBatch = db.batch();
-    liveUsers.forEach(u => {
-        kBatch.set(db.collection('kickSignals').doc(u.id), {
-            kicked: true, kickedBy: 'Admin', reason: 'Mass kick',
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        batch.delete(db.collection('liveUsers').doc(u.id));
-    });
-    await Promise.all([batch.commit(), kBatch.commit()]);
-    toast('All users kicked.', 'success');
-}
-
-async function sendAdminMessage() {
-    const input = document.getElementById('adminChatInput');
-    const text  = input.value.trim();
-    if (!text) return;
-    input.value = '';
-    await db.collection('chatMessages').add({
-        text,
-        uid:         'admin',
-        username:    'admin',
-        author:      '🛡️ Admin',
-        displayName: '🛡️ Admin',
-        realName:    '',
-        timestamp:   firebase.firestore.FieldValue.serverTimestamp()
-    });
-    toast('Message sent.', 'success');
-}
-
-async function deleteChatMsg(id) {
-    await db.collection('chatMessages').doc(id).delete();
-    toast('Message deleted.', 'success');
-}
-
-async function clearAllChat() {
-    if (!confirm('Delete ALL chat messages?')) return;
-    const snap  = await db.collection('chatMessages').get();
-    const batch = db.batch();
-    snap.forEach(doc => batch.delete(doc.ref));
-    await batch.commit();
-    toast('Chat cleared.', 'success');
-}
-
-async function deleteSuggestion(id) {
-    if (!confirm('Delete this suggestion?')) return;
-    await db.collection('contentSuggestions').doc(id).delete();
-    toast('Suggestion deleted.', 'success');
-}
-
-async function clearAllSuggestions() {
-    if (!confirm('Delete ALL content suggestions?')) return;
-    const snap  = await db.collection('contentSuggestions').get();
-    const batch = db.batch();
-    snap.forEach(doc => batch.delete(doc.ref));
-    await batch.commit();
-    toast('All suggestions cleared.', 'success');
-}
-
-// ─── Debug ────────────────────────────────────────────────────────────────────
-async function manualRefresh() {
-    debug('Refreshing...');
-    await loadUserDetails();
-    renderApproved();
-    renderPending();
-    renderLive();
-    debug('Done.');
-}
-
-async function refreshLiveUsers() {
-    const snap = await db.collection('liveUsers').get();
-    debug('Found ' + snap.size + ' live user records in DB.');
-}
-
-async function createTestRequest() {
-    const id = 'testuser_' + Date.now();
-    await db.collection('pendingRequests').doc(id).set({
-        username:    id,
-        displayName: 'Test User',
-        realName:    'Test Person',
-        requestedAt: new Date().toISOString()
-    });
-    debug('Created test request: ' + id);
-    toast('Test request created.', 'success');
-}
-
-async function clearAllPending() {
-    if (!confirm('Clear ALL pending requests?')) return;
-    const snap  = await db.collection('pendingRequests').get();
-    const batch = db.batch();
-    snap.forEach(doc => batch.delete(doc.ref));
-    await batch.commit();
-    debug('Cleared ' + snap.size + ' pending request(s).');
-    toast('All pending requests cleared.', 'success');
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 function timeAgo(date) {
     const diff = Math.floor((new Date() - date) / 1000);
-    if (diff < 60)   return 'Just now';
+    if (diff < 60) return 'Just now';
     if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
     return Math.floor(diff / 3600) + 'h ago';
 }
 
-function debug(msg) {
-    const el = document.getElementById('debugOutput');
-    if (el) el.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
-    console.log('[debug]', msg);
-}
-
 function escHtml(str) {
+    if (!str) return '';
     return String(str)
         .replace(/&/g,'&amp;').replace(/</g,'&lt;')
         .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -790,6 +384,497 @@ function toast(msg, type) {
         setTimeout(() => { el.style.display = 'none'; }, 300);
     }, 4000);
 }
+
+function debug(msg) {
+    const el = document.getElementById('debugOutput');
+    if (el) el.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+    console.log('[debug]', msg);
+}
+
+function setStatus(msg, cls) {
+    const el = document.getElementById('connectionStatus');
+    el.textContent = msg;
+    el.className = cls || '';
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// REAL-TIME LISTENERS - FIXED to use correct collections
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── Approved Users - NOW from users collection where allowed = true ─────────
+db.collection('users').where('allowed', '==', true).onSnapshot(snap => {
+    approvedUsers = [];
+    snap.forEach(doc => {
+        const data = doc.data();
+        approvedUsers.push({
+            id: doc.id,
+            username: doc.id,
+            displayName: data.displayName || doc.id,
+            realName: data.realName || '',
+            email: data.email || '',
+            isAdmin: data.isAdmin || false
+        });
+    });
+    renderApproved();
+    setStatus('Connected · ' + approvedUsers.length + ' approved users · Live updates active', 'connected');
+}, err => setStatus('Listener error: ' + err.message, 'error'));
+
+// ─── Pending requests ─────────────────────────────────────────────────────────
+db.collection('pendingRequests').onSnapshot(snap => {
+    pendingRequests = [];
+    snap.forEach(doc => {
+        const d = doc.data();
+        pendingRequests.push({
+            id: doc.id,
+            username: d.username || doc.id,
+            displayName: d.displayName || doc.id,
+            realName: d.realName || '',
+            requestedAt: d.requestedAt
+        });
+    });
+    renderPending();
+}, err => console.error('Pending listener:', err));
+
+// ─── Live users ─────────────────────────────────────────────────────────────
+db.collection('liveUsers').onSnapshot(snap => {
+    const now = new Date();
+    liveUsers = [];
+    snap.forEach(doc => {
+        const d = doc.data();
+        const lastSeen = d.lastSeen ? d.lastSeen.toDate() : now;
+        const diff = (now - lastSeen) / 1000;
+        if (diff > 300) return;
+        liveUsers.push({
+            id: doc.id,
+            username: d.username || 'unknown',
+            displayName: d.displayName || d.username || 'Unknown',
+            realName: d.realName || '',
+            activity: d.activity || 'Browsing',
+            lastSeen,
+            status: diff > 60 ? 'idle' : 'online'
+        });
+    });
+    renderLive();
+}, err => console.error('Live users listener:', err));
+
+// ─── Chat ─────────────────────────────────────────────────────────────────────
+db.collection('chatMessages')
+    .orderBy('timestamp', 'asc')
+    .limitToLast(80)
+    .onSnapshot(snap => {
+        const log = document.getElementById('chatLog');
+        const countEl = document.getElementById('chatCount');
+        if (countEl) countEl.textContent = snap.size + ' messages';
+        if (!snap.size) { log.innerHTML = '<div class="empty-row">No messages yet.</div>'; return; }
+
+        log.innerHTML = '';
+        snap.forEach(doc => {
+            const m = doc.data();
+            const name = m.displayName || m.author || m.username || 'User';
+            const color = avatarColor(name);
+            const ts = m.timestamp ? timeAgo(m.timestamp.toDate ? m.timestamp.toDate() : new Date(m.timestamp)) : '';
+
+            const el = document.createElement('div');
+            el.className = 'chat-log-msg';
+            el.innerHTML =
+                '<div class="chat-log-avatar" style="background:' + color + ';">' + getInitials(name) + '</div>' +
+                '<div class="chat-log-body">' +
+                    '<div><span class="chat-log-author">' + escHtml(name) + '</span></div>' +
+                    '<div class="chat-log-text">' + escHtml(m.text) + '</div>' +
+                    '<div class="chat-log-ts">' + ts + '</div>' +
+                '</div>' +
+                '<button class="btn btn-danger" style="font-size:0.72rem;padding:0.3rem 0.6rem;" data-msg-id="' + doc.id + '">✕</button>';
+            log.appendChild(el);
+        });
+        log.scrollTop = log.scrollHeight;
+    }, err => console.error('Chat listener:', err));
+
+// ─── Content Suggestions ──────────────────────────────────────────────────────
+db.collection('contentSuggestions')
+    .orderBy('createdAt', 'desc')
+    .limitToLast(50)
+    .onSnapshot(snap => {
+        const listEl = document.getElementById('suggestionsList');
+        const countEl = document.getElementById('suggestionsCount');
+        if (countEl) countEl.textContent = snap.size + ' suggestions';
+        if (!snap.size) { 
+            listEl.innerHTML = '<div class="empty-row">No suggestions yet.</div>'; 
+            return; 
+        }
+
+        listEl.innerHTML = '';
+        snap.forEach(doc => {
+            const s = doc.data();
+            const name = s.author || 'Anonymous';
+            const color = avatarColor(name);
+            const ts = s.createdAt ? timeAgo(s.createdAt.toDate ? s.createdAt.toDate() : new Date(s.createdAt)) : '';
+            const votes = s.votes || 0;
+            
+            const el = document.createElement('div');
+            el.className = 'user-row';
+            el.innerHTML =
+                '<div class="user-avatar" style="background:' + color + ';">' + getInitials(name) + '</div>' +
+                '<div class="user-info-block">' +
+                    '<div class="user-name">' + escHtml(s.title || 'No title') + '</div>' +
+                    '<div class="user-sub">by ' + escHtml(name) + ' · ' + votes + ' votes · ' + ts + '</div>' +
+                    (s.description ? '<div class="user-real">' + escHtml(s.description.substring(0, 100)) + (s.description.length > 100 ? '...' : '') + '</div>' : '') +
+                '</div>' +
+                '<div class="action-pair">' +
+                    '<button class="btn btn-danger" data-suggestion-id="' + doc.id + '">✕ Delete</button>' +
+                '</div>';
+            listEl.appendChild(el);
+        });
+    }, err => console.error('Suggestions listener:', err));
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// RENDER FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function renderApproved() {
+    const el = document.getElementById('approvedList');
+    const countEl = document.getElementById('approvedCount');
+    if (countEl) countEl.textContent = approvedUsers.length;
+
+    if (!approvedUsers.length) {
+        el.innerHTML = '<div class="empty-row">No approved users.</div>';
+        return;
+    }
+    el.innerHTML = approvedUsers.map(u => {
+        const color = avatarColor(u.displayName);
+        const initials = getInitials(u.displayName);
+        return '<div class="user-row" data-username="' + u.username + '">' +
+            '<div class="user-avatar" style="background:' + color + ';">' + initials + '</div>' +
+            '<div class="user-info-block">' +
+                '<div class="user-name">' + escHtml(u.displayName) + (u.isAdmin ? ' 👑' : '') + '</div>' +
+                (u.realName ? '<div class="user-real">' + escHtml(u.realName) + '</div>' : '') +
+                '<div class="user-sub">@' + escHtml(u.username) + '</div>' +
+            '</div>' +
+            '<button class="btn btn-danger remove-user-btn" data-username="' + u.username + '">Remove</button>' +
+        '</div>';
+    }).join('');
+}
+
+function renderPending() {
+    const el = document.getElementById('pendingList');
+    const countEl = document.getElementById('pendingCount');
+    if (countEl) countEl.textContent = pendingRequests.length;
+
+    if (!pendingRequests.length) {
+        el.innerHTML = '<div class="empty-row">No pending requests.</div>';
+        return;
+    }
+    el.innerHTML = pendingRequests.map(r => {
+        const color = avatarColor(r.displayName);
+        const initials = getInitials(r.displayName);
+        const dateStr = r.requestedAt ? new Date(r.requestedAt.toDate()).toLocaleString() : '';
+        return '<div class="user-row" data-username="' + r.username + '">' +
+            '<div class="user-avatar" style="background:' + color + ';">' + initials + '</div>' +
+            '<div class="user-info-block">' +
+                '<div class="user-name">' + escHtml(r.displayName) + '</div>' +
+                (r.realName ? '<div class="user-real">' + escHtml(r.realName) + '</div>' : '') +
+                '<div class="user-sub">@' + escHtml(r.username) + (dateStr ? ' · ' + dateStr : '') + '</div>' +
+            '</div>' +
+            '<div class="action-pair">' +
+                '<button class="btn btn-success approve-user-btn" data-username="' + r.username + '">✓ Approve</button>' +
+                '<button class="btn btn-danger deny-user-btn" data-username="' + r.username + '">✗ Deny</button>' +
+            '</div>' +
+        '</div>';
+    }).join('');
+}
+
+function renderLive() {
+    const el = document.getElementById('liveList');
+    const countEl = document.getElementById('liveCount');
+    if (countEl) countEl.textContent = liveUsers.length + ' online';
+
+    if (!liveUsers.length) {
+        el.innerHTML = '<div class="empty-row">No users currently online.</div>';
+        return;
+    }
+    liveUsers.sort((a, b) => b.lastSeen - a.lastSeen);
+    el.innerHTML = liveUsers.map(u => {
+        const color = avatarColor(u.displayName);
+        const initials = getInitials(u.displayName);
+        const statusCls = u.status === 'online' ? 'status-online' : 'status-idle';
+        return '<div class="user-row" data-session-id="' + u.id + '">' +
+            '<div class="user-avatar" style="background:' + color + ';">' + initials + '</div>' +
+            '<div class="user-info-block">' +
+                '<div class="user-name">' +
+                    '<span class="status-dot ' + statusCls + '"></span>' +
+                    escHtml(u.displayName) +
+                '</div>' +
+                (u.realName ? '<div class="user-real">' + escHtml(u.realName) + '</div>' : '') +
+                '<div class="user-sub">@' + escHtml(u.username) + ' · ' + u.activity + ' · ' + timeAgo(u.lastSeen) + '</div>' +
+            '</div>' +
+            '<button class="btn btn-kick kick-user-btn" data-session-id="' + u.id + '" data-username="' + u.username + '">Kick</button>' +
+        '</div>';
+    }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ACTIONS - FIXED to use correct collections
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Add user to whitelist
+async function addUser() {
+    const input = document.getElementById('newUsername');
+    const username = input.value.trim();
+    if (!username) { toast('Please enter a username.', 'error'); return; }
+    
+    try {
+        // Check if already exists
+        const existing = await db.collection('users').doc(username).get();
+        if (existing.exists) {
+            toast('User already exists.', 'error');
+            return;
+        }
+        
+        // Add to users collection
+        await db.collection('users').doc(username).set({
+            username: username,
+            displayName: username,
+            allowed: true,
+            addedBy: firebase.auth().currentUser?.email || 'admin',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        // Remove from pending if exists
+        await db.collection('pendingRequests').doc(username).delete();
+        
+        input.value = '';
+        toast(username + ' added to whitelist.', 'success');
+    } catch(e) {
+        console.error('Error adding user:', e);
+        toast('Error adding user.', 'error');
+    }
+}
+
+// Approve user from pending
+async function approveUser(username) {
+    try {
+        // Get pending request data
+        const pendingDoc = await db.collection('pendingRequests').doc(username).get();
+        if (!pendingDoc.exists) {
+            toast('No pending request found.', 'error');
+            return;
+        }
+        
+        const data = pendingDoc.data();
+        
+        // Add to users collection
+        await db.collection('users').doc(username).set({
+            username: username,
+            displayName: data.displayName || username,
+            realName: data.realName || '',
+            email: data.email || `${username}@gamehub.local`,
+            uid: data.uid,
+            allowed: true,
+            approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            approvedBy: firebase.auth().currentUser?.email || 'admin'
+        });
+        
+        // Delete pending request
+        await db.collection('pendingRequests').doc(username).delete();
+        
+        toast(username + ' approved! They can now sign in.', 'success');
+    } catch(e) {
+        console.error('Error approving user:', e);
+        toast('Error approving user.', 'error');
+    }
+}
+
+// Deny user
+async function denyUser(username) {
+    if (!confirm('Deny request from ' + username + '?')) return;
+    try {
+        await db.collection('pendingRequests').doc(username).delete();
+        toast(username + ' denied.', 'error');
+    } catch(e) {
+        console.error('Error denying user:', e);
+        toast('Error denying user.', 'error');
+    }
+}
+
+// Remove user from whitelist
+async function removeUser(username) {
+    if (!confirm('Remove ' + username + ' from the whitelist?')) return;
+    try {
+        await db.collection('users').doc(username).delete();
+        toast(username + ' removed from whitelist.', 'success');
+    } catch(e) {
+        console.error('Error removing user:', e);
+        toast('Error removing user.', 'error');
+    }
+}
+
+// Kick user
+async function kickUser(sessionId, username) {
+    if (!confirm('Kick ' + username + '?')) return;
+    try {
+        await db.collection('kickSignals').doc(sessionId).set({
+            kicked: true,
+            kickedBy: 'Admin',
+            reason: 'Manual kick by admin',
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        await db.collection('liveUsers').doc(sessionId).delete();
+        toast(username + ' has been kicked.', 'success');
+        setTimeout(() => db.collection('kickSignals').doc(sessionId).delete().catch(()=>{}), 30000);
+    } catch(e) {
+        console.error('Error kicking user:', e);
+        toast('Error kicking user.', 'error');
+    }
+}
+
+// Kick all users
+async function kickAllUsers() {
+    if (!confirm('Kick ALL ' + liveUsers.length + ' users?')) return;
+    const batch = db.batch();
+    const kBatch = db.batch();
+    liveUsers.forEach(u => {
+        kBatch.set(db.collection('kickSignals').doc(u.id), {
+            kicked: true, kickedBy: 'Admin', reason: 'Mass kick',
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        batch.delete(db.collection('liveUsers').doc(u.id));
+    });
+    await Promise.all([batch.commit(), kBatch.commit()]);
+    toast('All users kicked.', 'success');
+}
+
+// Send admin message
+async function sendAdminMessage() {
+    const input = document.getElementById('adminChatInput');
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    await db.collection('chatMessages').add({
+        text,
+        uid: 'admin',
+        username: 'admin',
+        author: '🛡️ Admin',
+        displayName: '🛡️ Admin',
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    toast('Message sent.', 'success');
+}
+
+// Delete chat message
+async function deleteChatMsg(id) {
+    await db.collection('chatMessages').doc(id).delete();
+    toast('Message deleted.', 'success');
+}
+
+// Clear all chat
+async function clearAllChat() {
+    if (!confirm('Delete ALL chat messages?')) return;
+    const snap = await db.collection('chatMessages').get();
+    const batch = db.batch();
+    snap.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
+    toast('Chat cleared.', 'success');
+}
+
+// Delete suggestion
+async function deleteSuggestion(id) {
+    if (!confirm('Delete this suggestion?')) return;
+    await db.collection('contentSuggestions').doc(id).delete();
+    toast('Suggestion deleted.', 'success');
+}
+
+// Clear all suggestions
+async function clearAllSuggestions() {
+    if (!confirm('Delete ALL content suggestions?')) return;
+    const snap = await db.collection('contentSuggestions').get();
+    const batch = db.batch();
+    snap.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
+    toast('All suggestions cleared.', 'success');
+}
+
+// Clear all pending
+async function clearAllPending() {
+    if (!confirm('Clear ALL pending requests?')) return;
+    const snap = await db.collection('pendingRequests').get();
+    const batch = db.batch();
+    snap.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
+    toast('All pending requests cleared.', 'success');
+}
+
+// Create test request
+async function createTestRequest() {
+    const id = 'testuser_' + Date.now();
+    await db.collection('pendingRequests').doc(id).set({
+        username: id,
+        displayName: 'Test User',
+        realName: 'Test Person',
+        requestedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        status: 'pending'
+    });
+    debug('Created test request: ' + id);
+    toast('Test request created.', 'success');
+}
+
+// Refresh all
+function refreshAll() {
+    debug('Refreshing...');
+    renderApproved();
+    renderPending();
+    renderLive();
+    debug('Done.');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// EVENT LISTENERS (using event delegation for dynamic elements)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Static buttons
+    document.getElementById('addUserBtn')?.addEventListener('click', addUser);
+    document.getElementById('clearAllPendingBtn')?.addEventListener('click', clearAllPending);
+    document.getElementById('kickAllUsersBtn')?.addEventListener('click', kickAllUsers);
+    document.getElementById('sendAdminMsgBtn')?.addEventListener('click', sendAdminMessage);
+    document.getElementById('clearAllChatBtn')?.addEventListener('click', clearAllChat);
+    document.getElementById('clearAllSuggestionsBtn')?.addEventListener('click', clearAllSuggestions);
+    document.getElementById('createTestRequestBtn')?.addEventListener('click', createTestRequest);
+    document.getElementById('refreshBtn')?.addEventListener('click', refreshAll);
+    
+    // Event delegation for dynamic buttons
+    document.body.addEventListener('click', (e) => {
+        // Approve button
+        if (e.target.classList.contains('approve-user-btn')) {
+            const username = e.target.getAttribute('data-username');
+            approveUser(username);
+        }
+        // Deny button
+        else if (e.target.classList.contains('deny-user-btn')) {
+            const username = e.target.getAttribute('data-username');
+            denyUser(username);
+        }
+        // Remove user button
+        else if (e.target.classList.contains('remove-user-btn')) {
+            const username = e.target.getAttribute('data-username');
+            removeUser(username);
+        }
+        // Kick user button
+        else if (e.target.classList.contains('kick-user-btn')) {
+            const sessionId = e.target.getAttribute('data-session-id');
+            const username = e.target.getAttribute('data-username');
+            kickUser(sessionId, username);
+        }
+        // Delete chat message
+        else if (e.target.getAttribute('data-msg-id')) {
+            deleteChatMsg(e.target.getAttribute('data-msg-id'));
+        }
+        // Delete suggestion
+        else if (e.target.getAttribute('data-suggestion-id')) {
+            deleteSuggestion(e.target.getAttribute('data-suggestion-id'));
+        }
+    });
+    
+    setStatus('Connected to Firebase ✓ · Live updates active', 'connected');
+});
 </script>
 </body>
 </html>

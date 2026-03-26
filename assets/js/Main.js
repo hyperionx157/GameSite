@@ -75,36 +75,22 @@ function escHtml(str) {
     return d.innerHTML;
 }
 
-// Updated fmtTime to handle Firestore Timestamps
 function fmtTime(timestamp) {
     let date;
-    
-    // Handle Firestore Timestamp objects
     if (timestamp && typeof timestamp.toDate === 'function') {
         date = timestamp.toDate();
-    } 
-    // Handle ISO string
-    else if (typeof timestamp === 'string') {
+    } else if (typeof timestamp === 'string') {
         date = new Date(timestamp);
-    }
-    // Handle regular Date object
-    else if (timestamp instanceof Date) {
+    } else if (timestamp instanceof Date) {
         date = timestamp;
-    }
-    else {
+    } else {
         return 'recently';
     }
-    
-    // Check if date is valid
-    if (isNaN(date.getTime())) {
-        return 'recently';
-    }
-    
+    if (isNaN(date.getTime())) return 'recently';
     const now = new Date();
     const m = Math.floor((now - date) / 60000);
-    
-    if (m < 1)    return 'just now';
-    if (m < 60)   return m + 'm ago';
+    if (m < 1) return 'just now';
+    if (m < 60) return m + 'm ago';
     if (m < 1440) return Math.floor(m / 60) + 'h ago';
     return Math.floor(m / 1440) + 'd ago';
 }
@@ -123,56 +109,98 @@ function hideEl(id) {
     if (e) e.style.display = 'none';
 }
 
-// Migration function for existing string timestamps
-async function migrateExistingMessages() {
-    try {
-        const snapshot = await db.collection('chatMessages').get();
-        const batch = db.batch();
-        let count = 0;
+// ── Real-time Approval Listener ─────────────────────────────────────
+function listenForApprovalStatus() {
+    const user = firebase.auth().currentUser;
+    if (!user) return;
+    
+    const username = user.email ? user.email.replace('@gamehub.local', '') : user.uid;
+    
+    db.collection('users').doc(username).onSnapshot(function(doc) {
+        if (!doc.exists) return;
         
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            if (typeof data.timestamp === 'string') {
-                const timestampDate = new Date(data.timestamp);
-                if (!isNaN(timestampDate.getTime())) {
-                    batch.update(doc.ref, {
-                        timestamp: firebase.firestore.Timestamp.fromDate(timestampDate)
-                    });
-                    count++;
-                }
-            }
-        });
+        const data = doc.data();
+        const previousStatus = sessionStorage.getItem('userApprovalStatus');
+        const currentStatus = data.allowed ? 'approved' : 'pending';
         
-        if (count > 0) {
-            await batch.commit();
-            console.log(`[Migration] Converted ${count} messages to proper Timestamp format`);
+        if (previousStatus === 'pending' && currentStatus === 'approved') {
+            console.log('🎉 User was approved!');
+            showApprovalNotification();
+            alert('🎉 Your account has been approved! You can now log in.');
+            setTimeout(() => {
+                firebase.auth().signOut().then(() => {
+                    window.location.reload();
+                });
+            }, 3000);
         }
-    } catch(e) {
-        console.error('[Migration] Error converting messages:', e);
-    }
+        
+        sessionStorage.setItem('userApprovalStatus', currentStatus);
+    }, function(error) {
+        console.error('Error listening for approval:', error);
+    });
+}
+
+function showApprovalNotification() {
+    if (document.getElementById('approvalNotification')) return;
+    
+    const notification = document.createElement('div');
+    notification.id = 'approvalNotification';
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: linear-gradient(135deg, #2ecc71, #27ae60);
+        color: white;
+        padding: 15px 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        z-index: 10000;
+        animation: slideIn 0.5s ease;
+        font-family: inherit;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        cursor: pointer;
+    `;
+    notification.innerHTML = `
+        <i class="fas fa-check-circle" style="font-size: 20px;"></i>
+        <div>
+            <strong>Account Approved!</strong>
+            <div style="font-size: 12px; opacity: 0.9;">You can now log in. Redirecting...</div>
+        </div>
+        <button style="background: none; border: none; color: white; cursor: pointer; margin-left: 10px;">✕</button>
+    `;
+    
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+    `;
+    document.head.appendChild(style);
+    document.body.appendChild(notification);
+    
+    notification.querySelector('button').onclick = () => notification.remove();
+    setTimeout(() => { if (notification) notification.remove(); }, 5000);
 }
 
 // ── Section switching ────────────────────────────────────────────────
 function switchSection(name) {
     currentSection = name;
-
     document.querySelectorAll('.side-nav-btn').forEach(function(btn){
         btn.classList.toggle('active', btn.getAttribute('data-section') === name);
     });
     document.querySelectorAll('.content-section').forEach(function(s){
         s.classList.remove('active-section');
     });
-
     var map = { home:'sectionHome', library:'sectionLibrary', tools:'sectionTools', forum:'sectionForum', chat:'sectionChat' };
     var target = document.getElementById(map[name]);
     if (target) target.classList.add('active-section');
-
     var titles = { home:'Home', library:'Library', tools:'Tools', forum:'Feedback', chat:'Live Chat' };
     var titleEl = document.getElementById('pageTitle');
     if (titleEl) titleEl.textContent = titles[name] || name;
-
     if (name === 'forum') loadSuggestions();
-
     if (window.innerWidth <= 540) {
         var sm = document.getElementById('sideMenu');
         if (sm) sm.classList.remove('mobile-open');
@@ -180,7 +208,6 @@ function switchSection(name) {
 }
 window.switchSection = switchSection;
 
-// ── Side menu toggle ─────────────────────────────────────────────────
 function toggleSideMenu() {
     var sm = document.getElementById('sideMenu');
     var mc = document.getElementById('mainContent');
@@ -194,21 +221,16 @@ function toggleSideMenu() {
     if (mc) mc.classList.toggle('full-width', !sideMenuOpen);
 }
 
-// ── Game loading — fullscreen overlay ───────────────────────────────
 function loadItem(itemKey) {
     var url = GAME_URLS[itemKey];
     if (!url) { alert('Game not found!'); return; }
-
     currentItemKey = itemKey;
-
     var frame   = document.getElementById('itemFrame');
     var overlay = document.getElementById('gameOverlay');
     var titleEl = document.getElementById('miniMenuItemTitle');
     if (!frame || !overlay) return;
-
     frame.src = url;
     if (titleEl) titleEl.textContent = '▶ ' + titleCase(itemKey);
-
     overlay.style.display = 'block';
     document.body.style.overflow = 'hidden';
     hideMiniMenu();
@@ -216,7 +238,6 @@ function loadItem(itemKey) {
     document.title = titleCase(itemKey) + ' — Dev Portal';
 }
 
-// ── Mini menu ────────────────────────────────────────────────────────
 function showMiniMenu() {
     var m = document.getElementById('gameMiniMenu');
     if (m) { m.style.display = 'block'; miniMenuOpen = true; }
@@ -227,7 +248,6 @@ function hideMiniMenu() {
 }
 function toggleMiniMenu() { miniMenuOpen ? hideMiniMenu() : showMiniMenu(); }
 
-// ── Return to hub ────────────────────────────────────────────────────
 function returnToHub() {
     var overlay = document.getElementById('gameOverlay');
     var frame   = document.getElementById('itemFrame');
@@ -240,7 +260,6 @@ function returnToHub() {
     currentItemKey = null;
 }
 
-// ── In-game chat ─────────────────────────────────────────────────────
 function showGameChat() {
     var gc = document.getElementById('gameChat');
     if (gc) { gc.style.display = 'flex'; gameChatOpen = true; }
@@ -251,7 +270,6 @@ function hideGameChat() {
     if (gc) { gc.style.display = 'none'; gameChatOpen = false; }
 }
 
-// ── Chat system ──────────────────────────────────────────────────────
 function initChat() {
     db.collection('chatMessages')
         .orderBy('timestamp', 'asc')
@@ -261,8 +279,6 @@ function initChat() {
             snapshot.forEach(function(doc){ allMessages.push(doc.data()); });
             renderChatMessages();
         });
-
-    // Use liveUsers for online count
     db.collection('liveUsers').onSnapshot(function(snapshot) {
         var onlineCount = snapshot.size;
         var label = onlineCount + ' online';
@@ -271,47 +287,38 @@ function initChat() {
         if (c1) c1.textContent = label;
         if (c2) c2.textContent = label;
     });
-
     var sendBtn = document.getElementById('chatSendBtn');
     var input   = document.getElementById('chatInput');
     if (sendBtn) sendBtn.addEventListener('click', function(){ sendMessage(input); });
     if (input)   input.addEventListener('keypress', function(e){ if (e.key === 'Enter') sendMessage(input); });
-
     var gSend  = document.getElementById('gameChatSend');
     var gInput = document.getElementById('gameChatInput');
     if (gSend)  gSend.addEventListener('click', function(){ sendMessage(gInput); });
     if (gInput) gInput.addEventListener('keypress', function(e){ if (e.key === 'Enter') sendMessage(gInput); });
 }
 
-// Send message with proper Firestore Timestamp
 function sendMessage(inputEl) {
     if (!inputEl) return;
     var text = inputEl.value.trim();
     if (!text) return;
     var user = firebase.auth().currentUser;
-    
     var displayName = user ? (user.displayName || user.email || 'Anonymous') : 
                      ('User_' + Math.random().toString(36).slice(2, 8));
     var userId = user ? user.uid : ('anon_' + Math.random().toString(36).slice(2, 10));
-    
     db.collection('chatMessages').add({
         text:      text,
         author:    displayName,
         authorId:  userId,
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
-    }).then(function(){ 
-        inputEl.value = ''; 
-    }).catch(function(err){ 
+    }).then(function(){ inputEl.value = ''; }).catch(function(err){ 
         console.error('[Chat] send error:', err);
         alert('Failed to send message. Please try again.');
     });
 }
 
-// Render messages with proper timestamp handling
 function renderChatMessages() {
     var user  = firebase.auth().currentUser;
     var myUid = user ? user.uid : null;
-
     ['chatMessages', 'gameChatMessages'].forEach(function(id){
         var c = document.getElementById(id);
         if (!c) return;
@@ -337,7 +344,6 @@ function renderChatMessages() {
     });
 }
 
-// ── Forum ────────────────────────────────────────────────────────────
 function initForum() {
     var newBtn    = document.getElementById('newSuggestionBtn');
     var cancelBtn = document.getElementById('cancelSuggestionBtn');
@@ -347,7 +353,6 @@ function initForum() {
     if (submitBtn) submitBtn.addEventListener('click', submitSuggestion);
 }
 
-// Submit suggestion with proper Firestore Timestamp
 async function submitSuggestion() {
     var titleEl = document.getElementById('gameTitle');
     var descEl  = document.getElementById('gameDescription');
@@ -372,10 +377,7 @@ async function submitSuggestion() {
         hideEl('suggestionForm');
         titleEl.value = ''; descEl.value = '';
         loadSuggestions();
-    } catch(e) { 
-        console.error(e); 
-        alert('Error submitting suggestion.'); 
-    }
+    } catch(e) { console.error(e); alert('Error submitting suggestion.'); }
 }
 
 async function loadSuggestions() {
@@ -389,10 +391,7 @@ async function loadSuggestions() {
         hideEl('forumLoading');
         if (list.length === 0) { showEl('emptySuggestions'); return; }
         renderSuggestions(list);
-    } catch(e) { 
-        console.error(e); 
-        hideEl('forumLoading'); 
-    }
+    } catch(e) { console.error(e); hideEl('forumLoading'); }
 }
 
 function renderSuggestions(list) {
@@ -428,19 +427,13 @@ async function voteSuggestion(id, currentVotes, hasVoted) {
             await ref.update({ votes: currentVotes + 1, votedBy: firebase.firestore.FieldValue.arrayUnion(user.uid) });
         }
         loadSuggestions();
-    } catch(e) { 
-        console.error(e);
-        alert('Error updating vote.'); 
-    }
+    } catch(e) { console.error(e); alert('Error updating vote.'); }
 }
 window.voteSuggestion = voteSuggestion;
 
-// ── Game grid ────────────────────────────────────────────────────────
 function initGameGrid() {
     document.querySelectorAll('.item-btn').forEach(function(btn){
-        btn.addEventListener('click', function(){
-            loadItem(this.getAttribute('data-game'));
-        });
+        btn.addEventListener('click', function(){ loadItem(this.getAttribute('data-game')); });
     });
     var searchInput = document.getElementById('searchInput');
     if (searchInput) {
@@ -453,7 +446,6 @@ function initGameGrid() {
     }
 }
 
-// ── User profile ─────────────────────────────────────────────────────
 function updateUserProfile(user) {
     var name  = user.displayName || user.email || 'Player';
     var email = user.email || '';
@@ -469,16 +461,12 @@ function updateUserProfile(user) {
 function initAuth() {
     firebase.auth().onAuthStateChanged(function(user){
         if (user) {
-            // Extract username from email
             const username = user.email ? user.email.replace('@gamehub.local', '') : user.uid;
-            
             console.log('🔐 Auth state changed - User:', username);
             
-            // Check if user is whitelisted
             db.collection('users').doc(username).get()
                 .then(function(doc) {
                     if (doc.exists && doc.data().allowed === true) {
-                        // User is approved - grant access
                         currentUserData = { 
                             uid: user.uid, 
                             email: user.email, 
@@ -486,12 +474,9 @@ function initAuth() {
                             username: username
                         };
                         localStorage.setItem('currentUser', JSON.stringify(currentUserData));
-                        
-                        // Update user document with last login
                         db.collection('users').doc(username).update({
                             lastLogin: firebase.firestore.FieldValue.serverTimestamp()
                         }).catch(() => {});
-                        
                         updateUserProfile(user);
                         showEl('mainApp');
                         hideEl('loginHub');
@@ -501,25 +486,24 @@ function initAuth() {
                         initGameGrid();
                         switchSection('home');
                     } else {
-                        // User not approved - check if they're pending
-                        console.log('⚠️ User not approved, checking pending status...');
+                        console.log('⚠️ User not approved, listening for approval...');
+                        sessionStorage.setItem('userApprovalStatus', 'pending');
+                        listenForApprovalStatus();
+                        
                         db.collection('pendingRequests').doc(username).get()
                             .then(function(pendingDoc) {
                                 if (pendingDoc.exists) {
                                     console.log('⏳ User is pending approval');
-                                    alert('Your account is pending approval. Please wait for an administrator to approve your account.');
-                                } else if (doc.exists && !doc.data().allowed) {
-                                    alert('Your account has been denied. Please contact an administrator.');
+                                    alert('Your account is pending approval. You will be notified when approved.');
                                 } else {
                                     alert('Account not found. Please sign up first.');
                                 }
-                                // Sign them out
-                                firebase.auth().signOut();
                                 hideEl('loadingOverlay');
+                                showEl('loginHub', 'flex');
+                                hideEl('mainApp');
                             })
                             .catch(function(err) {
                                 console.error('Error checking pending:', err);
-                                firebase.auth().signOut();
                                 hideEl('loadingOverlay');
                             });
                     }
@@ -543,31 +527,21 @@ function initAuth() {
 
 // ── DOMContentLoaded ──────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function(){
-
-    // Firebase is initialized above, just get the Firestore reference
     db = firebase.firestore();
-
-    // Side menu toggle
     var menuToggle = document.getElementById('menuToggleBtn');
     if (menuToggle) menuToggle.addEventListener('click', toggleSideMenu);
-
-    // Nav buttons
     document.querySelectorAll('.side-nav-btn').forEach(function(btn){
         btn.addEventListener('click', function(){
             var section = this.getAttribute('data-section');
             if (section) switchSection(section);
         });
     });
-
-    // Logout
     var logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', function(){
             firebase.auth().signOut().then(returnToHub);
         });
     }
-
-    // Login
     var loginBtn      = document.getElementById('loginBtn');
     var emailInput    = document.getElementById('emailInput');
     var passwordInput = document.getElementById('passwordInput');
@@ -592,8 +566,37 @@ document.addEventListener('DOMContentLoaded', function(){
             if (el) el.addEventListener('keypress', function(e){ if (e.key === 'Enter') loginBtn.click(); });
         });
     }
-
-    // Signup - COMPLETELY FIXED VERSION
+    
+    // Check Status Button
+    var checkStatusBtn = document.getElementById('checkStatusBtn');
+    if (checkStatusBtn) {
+        checkStatusBtn.addEventListener('click', async function() {
+            const user = firebase.auth().currentUser;
+            if (!user) {
+                alert('Please log in first to check your status.');
+                return;
+            }
+            const username = user.email ? user.email.replace('@gamehub.local', '') : user.uid;
+            try {
+                const userDoc = await db.collection('users').doc(username).get();
+                if (userDoc.exists && userDoc.data().allowed === true) {
+                    alert('🎉 Your account has been approved! You can now log in.');
+                    window.location.reload();
+                } else {
+                    const pendingDoc = await db.collection('pendingRequests').doc(username).get();
+                    if (pendingDoc.exists) {
+                        alert('⏳ Your account is still pending approval. Please wait for an administrator to approve your account.');
+                    } else {
+                        alert('❌ Account not found. Please sign up first.');
+                    }
+                }
+            } catch(e) {
+                console.error('Error checking status:', e);
+                alert('Error checking status. Please try again.');
+            }
+        });
+    }
+    
     var signupBtn      = document.getElementById('signupBtn');
     var signupRealName = document.getElementById('signupRealName');
     var signupName     = document.getElementById('signupName');
@@ -604,25 +607,13 @@ document.addEventListener('DOMContentLoaded', function(){
             var real = signupRealName ? signupRealName.value.trim() : '';
             var name = signupName ? signupName.value.trim() : '';
             var pass = signupPassword ? signupPassword.value : '';
-            
-            if (!name || !pass) { 
-                alert('Please fill in all fields.'); 
-                return; 
-            }
-            if (pass.length < 6) { 
-                alert('Password must be at least 6 characters.'); 
-                return; 
-            }
-            
+            if (!name || !pass) { alert('Please fill in all fields.'); return; }
+            if (pass.length < 6) { alert('Password must be at least 6 characters.'); return; }
             var email = name + '@gamehub.local';
-            
-            // Disable button to prevent double-click
             signupBtn.disabled = true;
             signupBtn.textContent = 'Creating Account...';
-            
             console.log('📝 Starting signup for:', name);
             
-            // First check if username already exists in whitelist
             firebase.firestore().collection('users').doc(name).get()
                 .then(function(userDoc) {
                     if (userDoc.exists) {
@@ -631,8 +622,6 @@ document.addEventListener('DOMContentLoaded', function(){
                         signupBtn.textContent = 'Create Account';
                         return null;
                     }
-                    
-                    // Check pending requests
                     return firebase.firestore().collection('pendingRequests').doc(name).get();
                 })
                 .then(function(pendingDoc) {
@@ -642,20 +631,14 @@ document.addEventListener('DOMContentLoaded', function(){
                         signupBtn.textContent = 'Create Account';
                         return null;
                     }
-                    
-                    // Create the Firebase Auth account
                     return firebase.auth().createUserWithEmailAndPassword(email, pass);
                 })
                 .then(function(userCredential) {
                     if (!userCredential) return;
-                    
                     const user = userCredential.user;
                     console.log('✅ Account created in Firebase Auth:', user.email);
-                    
-                    // Update profile with display name
                     return user.updateProfile({ displayName: real || name })
                         .then(function() {
-                            // Add to pending requests collection
                             return firebase.firestore().collection('pendingRequests').doc(name).set({
                                 username: name,
                                 displayName: real || name,
@@ -668,29 +651,22 @@ document.addEventListener('DOMContentLoaded', function(){
                         })
                         .then(function() {
                             console.log('✅ Added to pendingRequests');
-                            // Sign out after adding to pending
                             return firebase.auth().signOut();
                         })
                         .then(function() {
                             console.log('✅ Signed out');
-                            alert('Account created! Your account is pending approval. An administrator will review your request.');
-                            
-                            // Clear form
+                            alert('Account created! Your account is pending approval. You will be notified when approved.');
                             signupRealName.value = '';
                             signupName.value = '';
                             signupPassword.value = '';
-                            
-                            // Switch back to login form
                             showEl('loginForm');
                             hideEl('signupForm');
-                            
                             signupBtn.disabled = false;
                             signupBtn.textContent = 'Create Account';
                         });
                 })
                 .catch(function(error) {
                     console.error('Signup error:', error);
-                    
                     let errorMessage = 'Signup failed: ';
                     switch(error.code) {
                         case 'auth/email-already-in-use':
@@ -699,50 +675,36 @@ document.addEventListener('DOMContentLoaded', function(){
                         case 'auth/weak-password':
                             errorMessage += 'Password should be at least 6 characters.';
                             break;
-                        case 'auth/invalid-email':
-                            errorMessage += 'Invalid username.';
-                            break;
                         default:
                             errorMessage += error.message;
                     }
                     alert(errorMessage);
-                    
                     signupBtn.disabled = false;
                     signupBtn.textContent = 'Create Account';
                 });
         });
     }
-
-    // Form switchers
+    
     var signupLink  = document.getElementById('signupLink');
     var backToLogin = document.getElementById('backToLogin');
     if (signupLink)  signupLink.addEventListener('click',  function(e){ e.preventDefault(); showEl('signupForm'); hideEl('loginForm'); });
     if (backToLogin) backToLogin.addEventListener('click', function(e){ e.preventDefault(); showEl('loginForm'); hideEl('signupForm'); });
-
-    // Minus key / Escape in game overlay
+    
     document.addEventListener('keydown', function(e){
         var overlay = document.getElementById('gameOverlay');
         if (!overlay || overlay.style.display === 'none') return;
         if (e.key === '-' || e.key === '_') { e.preventDefault(); toggleMiniMenu(); }
         if (e.key === 'Escape') { hideMiniMenu(); hideGameChat(); }
     });
-
-    // Overlay tab
+    
     var menuTab = document.getElementById('gameMenuTab');
     if (menuTab) menuTab.addEventListener('click', toggleMiniMenu);
-
-    // Mini menu buttons
     var miniReturn = document.getElementById('miniReturnBtn');
     if (miniReturn) miniReturn.addEventListener('click', returnToHub);
-
     var miniChat = document.getElementById('miniChatBtn');
     if (miniChat) miniChat.addEventListener('click', function(){ hideMiniMenu(); showGameChat(); });
-
-    // In-game chat close
     var gcClose = document.getElementById('gameChatClose');
     if (gcClose) gcClose.addEventListener('click', hideGameChat);
-
-    // Show loading until auth resolves
     showEl('loadingOverlay');
     initAuth();
 });
