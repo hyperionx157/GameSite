@@ -123,7 +123,7 @@ function hideEl(id) {
     if (e) e.style.display = 'none';
 }
 
-// Migration function for existing string timestamps (call once if needed)
+// Migration function for existing string timestamps
 async function migrateExistingMessages() {
     try {
         const snapshot = await db.collection('chatMessages').get();
@@ -132,10 +132,8 @@ async function migrateExistingMessages() {
         
         snapshot.forEach(doc => {
             const data = doc.data();
-            // If timestamp is a string (ISO format), convert it
             if (typeof data.timestamp === 'string') {
                 const timestampDate = new Date(data.timestamp);
-                // Only convert if it's a valid date
                 if (!isNaN(timestampDate.getTime())) {
                     batch.update(doc.ref, {
                         timestamp: firebase.firestore.Timestamp.fromDate(timestampDate)
@@ -264,7 +262,7 @@ function initChat() {
             renderChatMessages();
         });
 
-    // Use liveUsers for online count (replaces presence)
+    // Use liveUsers for online count
     db.collection('liveUsers').onSnapshot(function(snapshot) {
         var onlineCount = snapshot.size;
         var label = onlineCount + ' online';
@@ -471,13 +469,16 @@ function updateUserProfile(user) {
 function initAuth() {
     firebase.auth().onAuthStateChanged(function(user){
         if (user) {
-            // Extract username from email (remove @gamehub.local)
+            // Extract username from email
             const username = user.email ? user.email.replace('@gamehub.local', '') : user.uid;
             
-            // Check if user is whitelisted in the users collection
+            console.log('🔐 Auth state changed - User:', username);
+            
+            // Check if user is whitelisted
             db.collection('users').doc(username).get()
                 .then(function(doc) {
                     if (doc.exists && doc.data().allowed === true) {
+                        // User is approved - grant access
                         currentUserData = { 
                             uid: user.uid, 
                             email: user.email, 
@@ -486,15 +487,10 @@ function initAuth() {
                         };
                         localStorage.setItem('currentUser', JSON.stringify(currentUserData));
                         
-                        // Update or create user document with latest info
-                        db.collection('users').doc(username).set({
-                            username: username,
-                            displayName: user.displayName || username,
-                            email: user.email,
-                            uid: user.uid,
-                            lastLogin: firebase.firestore.FieldValue.serverTimestamp(),
-                            allowed: true
-                        }, { merge: true });
+                        // Update user document with last login
+                        db.collection('users').doc(username).update({
+                            lastLogin: firebase.firestore.FieldValue.serverTimestamp()
+                        }).catch(() => {});
                         
                         updateUserProfile(user);
                         showEl('mainApp');
@@ -505,24 +501,37 @@ function initAuth() {
                         initGameGrid();
                         switchSection('home');
                     } else {
-                        // User not whitelisted, sign them out
-                        firebase.auth().signOut();
-                        if (doc.exists) {
-                            alert('Your account is pending approval. Please wait for an administrator to approve your account.');
-                        } else {
-                            alert('Account not found. Please sign up first.');
-                        }
-                        hideEl('loadingOverlay');
+                        // User not approved - check if they're pending
+                        console.log('⚠️ User not approved, checking pending status...');
+                        db.collection('pendingRequests').doc(username).get()
+                            .then(function(pendingDoc) {
+                                if (pendingDoc.exists) {
+                                    console.log('⏳ User is pending approval');
+                                    alert('Your account is pending approval. Please wait for an administrator to approve your account.');
+                                } else if (doc.exists && !doc.data().allowed) {
+                                    alert('Your account has been denied. Please contact an administrator.');
+                                } else {
+                                    alert('Account not found. Please sign up first.');
+                                }
+                                // Sign them out
+                                firebase.auth().signOut();
+                                hideEl('loadingOverlay');
+                            })
+                            .catch(function(err) {
+                                console.error('Error checking pending:', err);
+                                firebase.auth().signOut();
+                                hideEl('loadingOverlay');
+                            });
                     }
                 })
                 .catch(function(error) {
                     console.error('Whitelist check error:', error);
-                    // On error, sign out for safety
                     firebase.auth().signOut();
                     alert('Authentication error. Please try again.');
                     hideEl('loadingOverlay');
                 });
         } else {
+            console.log('🔐 No user logged in');
             currentUserData = null;
             localStorage.removeItem('currentUser');
             hideEl('mainApp');
@@ -567,7 +576,6 @@ document.addEventListener('DOMContentLoaded', function(){
             var raw  = emailInput    ? emailInput.value.trim() : '';
             var pass = passwordInput ? passwordInput.value     : '';
             if (!raw || !pass) { alert('Please enter your username and password.'); return; }
-            // If it looks like a plain username (no @), append the domain used at signup
             var email = raw.includes('@') ? raw : raw + '@gamehub.local';
             firebase.auth().signInWithEmailAndPassword(email, pass)
                 .catch(function(e){ 
@@ -585,70 +593,122 @@ document.addEventListener('DOMContentLoaded', function(){
         });
     }
 
-    // Signup - Add user to pending requests for admin approval
+    // Signup - COMPLETELY FIXED VERSION
     var signupBtn      = document.getElementById('signupBtn');
     var signupRealName = document.getElementById('signupRealName');
     var signupName     = document.getElementById('signupName');
     var signupPassword = document.getElementById('signupPassword');
+    
     if (signupBtn) {
         signupBtn.addEventListener('click', function(){
             var real = signupRealName ? signupRealName.value.trim() : '';
-            var name = signupName     ? signupName.value.trim()     : '';
-            var pass = signupPassword ? signupPassword.value        : '';
-            if (!name || !pass) { alert('Please fill in all fields.'); return; }
-            if (pass.length < 6) { alert('Password must be at least 6 characters.'); return; }
+            var name = signupName ? signupName.value.trim() : '';
+            var pass = signupPassword ? signupPassword.value : '';
+            
+            if (!name || !pass) { 
+                alert('Please fill in all fields.'); 
+                return; 
+            }
+            if (pass.length < 6) { 
+                alert('Password must be at least 6 characters.'); 
+                return; 
+            }
             
             var email = name + '@gamehub.local';
             
-            // Check if username already exists in users collection
-            db.collection('users').doc(name).get()
+            // Disable button to prevent double-click
+            signupBtn.disabled = true;
+            signupBtn.textContent = 'Creating Account...';
+            
+            console.log('📝 Starting signup for:', name);
+            
+            // First check if username already exists in whitelist
+            firebase.firestore().collection('users').doc(name).get()
                 .then(function(userDoc) {
                     if (userDoc.exists) {
                         alert('Username already exists. Please choose another.');
-                        return;
+                        signupBtn.disabled = false;
+                        signupBtn.textContent = 'Create Account';
+                        return null;
                     }
                     
-                    // Check if already pending
-                    return db.collection('pendingRequests').doc(name).get().then(function(pendingDoc) {
-                        if (pendingDoc.exists) {
-                            alert('This username is already pending approval.');
-                            return;
-                        }
-                        
-                        // Create the account
-                        return firebase.auth().createUserWithEmailAndPassword(email, pass)
-                            .then(function(cred) {
-                                return cred.user.updateProfile({ displayName: real || name })
-                                    .then(function() {
-                                        // Add to pending requests for admin approval
-                                        return db.collection('pendingRequests').doc(name).set({
-                                            username: name,
-                                            displayName: real || name,
-                                            realName: real,
-                                            uid: cred.user.uid,
-                                            email: email,
-                                            requestedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                                            status: 'pending'
-                                        });
-                                    });
-                            })
-                            .then(function() {
-                                // Sign out immediately since they need approval
-                                firebase.auth().signOut();
-                                alert('Account created! Your account is pending approval. An administrator will review your request.');
-                                // Clear form
-                                signupRealName.value = '';
-                                signupName.value = '';
-                                signupPassword.value = '';
-                                // Switch back to login form
-                                showEl('loginForm');
-                                hideEl('signupForm');
-                            });
-                    });
+                    // Check pending requests
+                    return firebase.firestore().collection('pendingRequests').doc(name).get();
                 })
-                .catch(function(e) { 
-                    console.error('Signup error:', e);
-                    alert('Signup failed: ' + e.message); 
+                .then(function(pendingDoc) {
+                    if (pendingDoc && pendingDoc.exists) {
+                        alert('This username is already pending approval.');
+                        signupBtn.disabled = false;
+                        signupBtn.textContent = 'Create Account';
+                        return null;
+                    }
+                    
+                    // Create the Firebase Auth account
+                    return firebase.auth().createUserWithEmailAndPassword(email, pass);
+                })
+                .then(function(userCredential) {
+                    if (!userCredential) return;
+                    
+                    const user = userCredential.user;
+                    console.log('✅ Account created in Firebase Auth:', user.email);
+                    
+                    // Update profile with display name
+                    return user.updateProfile({ displayName: real || name })
+                        .then(function() {
+                            // Add to pending requests collection
+                            return firebase.firestore().collection('pendingRequests').doc(name).set({
+                                username: name,
+                                displayName: real || name,
+                                realName: real,
+                                uid: user.uid,
+                                email: email,
+                                requestedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                                status: 'pending'
+                            });
+                        })
+                        .then(function() {
+                            console.log('✅ Added to pendingRequests');
+                            // Sign out after adding to pending
+                            return firebase.auth().signOut();
+                        })
+                        .then(function() {
+                            console.log('✅ Signed out');
+                            alert('Account created! Your account is pending approval. An administrator will review your request.');
+                            
+                            // Clear form
+                            signupRealName.value = '';
+                            signupName.value = '';
+                            signupPassword.value = '';
+                            
+                            // Switch back to login form
+                            showEl('loginForm');
+                            hideEl('signupForm');
+                            
+                            signupBtn.disabled = false;
+                            signupBtn.textContent = 'Create Account';
+                        });
+                })
+                .catch(function(error) {
+                    console.error('Signup error:', error);
+                    
+                    let errorMessage = 'Signup failed: ';
+                    switch(error.code) {
+                        case 'auth/email-already-in-use':
+                            errorMessage += 'This username is already taken. Please choose another.';
+                            break;
+                        case 'auth/weak-password':
+                            errorMessage += 'Password should be at least 6 characters.';
+                            break;
+                        case 'auth/invalid-email':
+                            errorMessage += 'Invalid username.';
+                            break;
+                        default:
+                            errorMessage += error.message;
+                    }
+                    alert(errorMessage);
+                    
+                    signupBtn.disabled = false;
+                    signupBtn.textContent = 'Create Account';
                 });
         });
     }
