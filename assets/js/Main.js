@@ -61,6 +61,8 @@ var miniMenuOpen    = false;
 var gameChatOpen    = false;
 var currentItemKey = null;
 var allMessages     = [];
+var unreadChatCount = 0;
+var lastReadTimestamp = null;
 
 // ── Helpers ─────────────────────────────────────────────────────────
 function getInitials(name) {
@@ -107,6 +109,43 @@ function showEl(id, display) {
 function hideEl(id) {
     var e = document.getElementById(id);
     if (e) e.style.display = 'none';
+}
+
+// ── Chat Badge Functions ─────────────────────────────────────────────
+function updateChatBadges() {
+    const badge = document.getElementById('chatUnreadBadge');
+    const miniBadge = document.getElementById('miniChatBadge');
+    
+    if (unreadChatCount > 0) {
+        if (badge) {
+            badge.textContent = unreadChatCount > 9 ? '9+' : unreadChatCount;
+            badge.style.display = 'inline-block';
+        }
+        if (miniBadge) {
+            miniBadge.textContent = unreadChatCount > 9 ? '9+' : unreadChatCount;
+            miniBadge.style.display = 'inline-block';
+        }
+        const miniChatBtn = document.getElementById('miniChatBtn');
+        if (miniChatBtn && !miniChatBtn.querySelector('.unread-badge')) {
+            miniChatBtn.innerHTML = `<i class="fas fa-comments"></i> Open Chat <span class="unread-badge" style="background:#e74c3c; color:white; font-size:0.65rem; padding:2px 6px; border-radius:10px; margin-left:6px;">${unreadChatCount > 9 ? '9+' : unreadChatCount}</span>`;
+        }
+    } else {
+        if (badge) badge.style.display = 'none';
+        if (miniBadge) miniBadge.style.display = 'none';
+        const miniChatBtn = document.getElementById('miniChatBtn');
+        if (miniChatBtn) {
+            miniChatBtn.innerHTML = `<i class="fas fa-comments"></i> Open Chat`;
+        }
+    }
+}
+
+function markChatAsRead() {
+    const user = firebase.auth().currentUser;
+    if (!user) return;
+    lastReadTimestamp = new Date();
+    localStorage.setItem('lastReadChat_' + user.uid, lastReadTimestamp.toISOString());
+    unreadChatCount = 0;
+    updateChatBadges();
 }
 
 // ── Real-time Approval Listener ─────────────────────────────────────
@@ -201,6 +240,7 @@ function switchSection(name) {
     var titleEl = document.getElementById('pageTitle');
     if (titleEl) titleEl.textContent = titles[name] || name;
     if (name === 'forum') loadSuggestions();
+    if (name === 'chat') markChatAsRead();
     if (window.innerWidth <= 540) {
         var sm = document.getElementById('sideMenu');
         if (sm) sm.classList.remove('mobile-open');
@@ -240,11 +280,18 @@ function loadItem(itemKey) {
 
 function showMiniMenu() {
     var m = document.getElementById('gameMiniMenu');
-    if (m) { m.style.display = 'block'; miniMenuOpen = true; }
+    if (m) { 
+        m.style.display = 'block'; 
+        miniMenuOpen = true;
+        updateChatBadges();
+    }
 }
 function hideMiniMenu() {
     var m = document.getElementById('gameMiniMenu');
-    if (m) { m.style.display = 'none'; miniMenuOpen = false; }
+    if (m) { 
+        m.style.display = 'none'; 
+        miniMenuOpen = false; 
+    }
 }
 function toggleMiniMenu() { miniMenuOpen ? hideMiniMenu() : showMiniMenu(); }
 
@@ -262,12 +309,19 @@ function returnToHub() {
 
 function showGameChat() {
     var gc = document.getElementById('gameChat');
-    if (gc) { gc.style.display = 'flex'; gameChatOpen = true; }
+    if (gc) { 
+        gc.style.display = 'flex'; 
+        gameChatOpen = true;
+        markChatAsRead();
+    }
     hideMiniMenu();
 }
 function hideGameChat() {
     var gc = document.getElementById('gameChat');
-    if (gc) { gc.style.display = 'none'; gameChatOpen = false; }
+    if (gc) { 
+        gc.style.display = 'none'; 
+        gameChatOpen = false; 
+    }
 }
 
 function initChat() {
@@ -278,7 +332,23 @@ function initChat() {
             allMessages = [];
             snapshot.forEach(function(doc){ allMessages.push(doc.data()); });
             renderChatMessages();
+            
+            // Update unread count
+            const user = firebase.auth().currentUser;
+            if (user && lastReadTimestamp) {
+                let unread = 0;
+                snapshot.forEach(doc => {
+                    const msg = doc.data();
+                    const msgTime = msg.timestamp?.toDate();
+                    if (msg.authorId !== user.uid && msgTime && msgTime > lastReadTimestamp) {
+                        unread++;
+                    }
+                });
+                unreadChatCount = unread;
+                updateChatBadges();
+            }
         });
+    
     db.collection('liveUsers').onSnapshot(function(snapshot) {
         var onlineCount = snapshot.size;
         var label = onlineCount + ' online';
@@ -287,14 +357,36 @@ function initChat() {
         if (c1) c1.textContent = label;
         if (c2) c2.textContent = label;
     });
+    
     var sendBtn = document.getElementById('chatSendBtn');
     var input   = document.getElementById('chatInput');
     if (sendBtn) sendBtn.addEventListener('click', function(){ sendMessage(input); });
     if (input)   input.addEventListener('keypress', function(e){ if (e.key === 'Enter') sendMessage(input); });
+    
     var gSend  = document.getElementById('gameChatSend');
     var gInput = document.getElementById('gameChatInput');
     if (gSend)  gSend.addEventListener('click', function(){ sendMessage(gInput); });
     if (gInput) gInput.addEventListener('keypress', function(e){ if (e.key === 'Enter') sendMessage(gInput); });
+    
+    // Mark as read when chat section is shown
+    const chatSection = document.getElementById('sectionChat');
+    const observer = new MutationObserver(() => {
+        if (chatSection && chatSection.classList.contains('active-section')) {
+            markChatAsRead();
+        }
+    });
+    if (chatSection) observer.observe(chatSection, { attributes: true, attributeFilter: ['class'] });
+    
+    // Mark as read when game chat is opened
+    const gameChatPanel = document.getElementById('gameChat');
+    if (gameChatPanel) {
+        const chatObserver = new MutationObserver(() => {
+            if (gameChatPanel.style.display === 'flex') {
+                markChatAsRead();
+            }
+        });
+        chatObserver.observe(gameChatPanel, { attributes: true, attributeFilter: ['style'] });
+    }
 }
 
 function sendMessage(inputEl) {
@@ -344,6 +436,7 @@ function renderChatMessages() {
     });
 }
 
+// ── Forum ────────────────────────────────────────────────────────────
 function initForum() {
     var newBtn    = document.getElementById('newSuggestionBtn');
     var cancelBtn = document.getElementById('cancelSuggestionBtn');
@@ -464,9 +557,14 @@ function initAuth() {
             const username = user.email ? user.email.replace('@gamehub.local', '') : user.uid;
             console.log('🔐 Auth state changed - User:', username);
             
+            // Load last read timestamp
+            const saved = localStorage.getItem('lastReadChat_' + user.uid);
+            lastReadTimestamp = saved ? new Date(saved) : new Date();
+            
             db.collection('users').doc(username).get()
                 .then(function(doc) {
                     if (doc.exists && doc.data().allowed === true) {
+                        // User is approved
                         currentUserData = { 
                             uid: user.uid, 
                             email: user.email, 
@@ -486,25 +584,34 @@ function initAuth() {
                         initGameGrid();
                         switchSection('home');
                     } else {
-                        console.log('⚠️ User not approved, listening for approval...');
-                        sessionStorage.setItem('userApprovalStatus', 'pending');
-                        listenForApprovalStatus();
+                        // User not approved - check if they're pending
+                        console.log('⚠️ User not approved, checking pending status...');
                         
                         db.collection('pendingRequests').doc(username).get()
                             .then(function(pendingDoc) {
                                 if (pendingDoc.exists) {
                                     console.log('⏳ User is pending approval');
+                                    // Set pending status and listen for approval
+                                    sessionStorage.setItem('userApprovalStatus', 'pending');
+                                    listenForApprovalStatus();
                                     alert('Your account is pending approval. You will be notified when approved.');
                                 } else {
+                                    // This shouldn't happen if signup worked
+                                    console.log('❌ No pending request found for', username);
                                     alert('Account not found. Please sign up first.');
                                 }
+                                // Sign out since they're not approved
+                                firebase.auth().signOut();
                                 hideEl('loadingOverlay');
                                 showEl('loginHub', 'flex');
                                 hideEl('mainApp');
                             })
                             .catch(function(err) {
                                 console.error('Error checking pending:', err);
+                                firebase.auth().signOut();
                                 hideEl('loadingOverlay');
+                                showEl('loginHub', 'flex');
+                                hideEl('mainApp');
                             });
                     }
                 })
@@ -513,6 +620,8 @@ function initAuth() {
                     firebase.auth().signOut();
                     alert('Authentication error. Please try again.');
                     hideEl('loadingOverlay');
+                    showEl('loginHub', 'flex');
+                    hideEl('mainApp');
                 });
         } else {
             console.log('🔐 No user logged in');
@@ -610,11 +719,15 @@ document.addEventListener('DOMContentLoaded', function(){
             if (!name || !pass) { alert('Please fill in all fields.'); return; }
             if (pass.length < 6) { alert('Password must be at least 6 characters.'); return; }
             var email = name + '@gamehub.local';
+            
+            // Disable button
             signupBtn.disabled = true;
             signupBtn.textContent = 'Creating Account...';
+            
             console.log('📝 Starting signup for:', name);
             
-            firebase.firestore().collection('users').doc(name).get()
+            // Check if username already exists in whitelist
+            db.collection('users').doc(name).get()
                 .then(function(userDoc) {
                     if (userDoc.exists) {
                         alert('Username already exists. Please choose another.');
@@ -622,7 +735,7 @@ document.addEventListener('DOMContentLoaded', function(){
                         signupBtn.textContent = 'Create Account';
                         return null;
                     }
-                    return firebase.firestore().collection('pendingRequests').doc(name).get();
+                    return db.collection('pendingRequests').doc(name).get();
                 })
                 .then(function(pendingDoc) {
                     if (pendingDoc && pendingDoc.exists) {
@@ -631,15 +744,19 @@ document.addEventListener('DOMContentLoaded', function(){
                         signupBtn.textContent = 'Create Account';
                         return null;
                     }
+                    // Create the account
                     return firebase.auth().createUserWithEmailAndPassword(email, pass);
                 })
                 .then(function(userCredential) {
                     if (!userCredential) return;
                     const user = userCredential.user;
                     console.log('✅ Account created in Firebase Auth:', user.email);
+                    
+                    // Update profile
                     return user.updateProfile({ displayName: real || name })
                         .then(function() {
-                            return firebase.firestore().collection('pendingRequests').doc(name).set({
+                            // Add to pending requests
+                            return db.collection('pendingRequests').doc(name).set({
                                 username: name,
                                 displayName: real || name,
                                 realName: real,
@@ -651,14 +768,17 @@ document.addEventListener('DOMContentLoaded', function(){
                         })
                         .then(function() {
                             console.log('✅ Added to pendingRequests');
+                            // Sign out immediately - they need approval
                             return firebase.auth().signOut();
                         })
                         .then(function() {
                             console.log('✅ Signed out');
                             alert('Account created! Your account is pending approval. You will be notified when approved.');
+                            // Clear form
                             signupRealName.value = '';
                             signupName.value = '';
                             signupPassword.value = '';
+                            // Switch back to login form
                             showEl('loginForm');
                             hideEl('signupForm');
                             signupBtn.disabled = false;
@@ -693,8 +813,14 @@ document.addEventListener('DOMContentLoaded', function(){
     document.addEventListener('keydown', function(e){
         var overlay = document.getElementById('gameOverlay');
         if (!overlay || overlay.style.display === 'none') return;
-        if (e.key === '-' || e.key === '_') { e.preventDefault(); toggleMiniMenu(); }
-        if (e.key === 'Escape') { hideMiniMenu(); hideGameChat(); }
+        if (e.key === '-' || e.key === '_' || e.key === 'Minus') { 
+            e.preventDefault(); 
+            toggleMiniMenu(); 
+        }
+        if (e.key === 'Escape') { 
+            hideMiniMenu(); 
+            hideGameChat(); 
+        }
     });
     
     var menuTab = document.getElementById('gameMenuTab');
