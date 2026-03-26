@@ -31,7 +31,8 @@ const GAME_URLS = {
     'adofai':            'games/html5/adofai.html',
     'getaway-shootout':  'games/html5/getaway-shootout.html',
     'eaglercraft':       'games/html5/eaglercraft.html',
-    'crazycattle3d':     'games/html5/crazycattle3d.html'
+    'crazycattle3d':     'games/html5/crazycattle3d.html',
+    'ucn':              'games/html5/UCN.html'
 };
 
 // ── Firebase db — assigned inside DOMContentLoaded ──────────────────
