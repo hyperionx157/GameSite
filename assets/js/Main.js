@@ -397,16 +397,34 @@ function updateUserProfile(user) {
 function initAuth() {
     firebase.auth().onAuthStateChanged(function(user){
         if (user) {
-            currentUserData = { uid: user.uid, email: user.email, displayName: user.displayName || user.email };
-            localStorage.setItem('currentUser', JSON.stringify(currentUserData));
-            updateUserProfile(user);
-            showEl('mainApp');
-            hideEl('loginHub');
-            hideEl('loadingOverlay');
-            initChat();
-            initForum();
-            initGameGrid();
-            switchSection('home');
+            // Check if user is whitelisted
+            db.collection('whitelist').doc(user.uid).get()
+                .then(function(doc) {
+                    if (doc.exists && doc.data().allowed) {
+                        currentUserData = { uid: user.uid, email: user.email, displayName: user.displayName || user.email };
+                        localStorage.setItem('currentUser', JSON.stringify(currentUserData));
+                        updateUserProfile(user);
+                        showEl('mainApp');
+                        hideEl('loginHub');
+                        hideEl('loadingOverlay');
+                        initChat();
+                        initForum();
+                        initGameGrid();
+                        switchSection('home');
+                    } else {
+                        // User not whitelisted, sign them out
+                        firebase.auth().signOut();
+                        alert('Your account is not on the whitelist. Please contact an administrator.');
+                        hideEl('loadingOverlay');
+                    }
+                })
+                .catch(function(error) {
+                    console.error('Whitelist check error:', error);
+                    // On error, sign out for safety
+                    firebase.auth().signOut();
+                    alert('Authentication error. Please try again.');
+                    hideEl('loadingOverlay');
+                });
         } else {
             currentUserData = null;
             localStorage.removeItem('currentUser');
