@@ -814,3 +814,36 @@ a.side-nav-link {
     .home-cards  { grid-template-columns: 1fr 1fr; }
     .game-chat-panel { width: calc(100vw - 24px); right: 12px; }
 }
+/* Unread badge for mini menu */
+.unread-badge {
+    background: #e74c3c;
+    color: white;
+    font-size: 0.65rem;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 10px;
+    margin-left: 6px;
+    min-width: 18px;
+    text-align: center;
+    display: inline-block;
+    animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+/* Sidebar unread badge */
+.side-badge {
+    margin-left: auto;
+    background: #e74c3c;
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: 1px 6px;
+    min-width: 18px;
+    text-align: center;
+    animation: pulse 1s ease-in-out infinite;
+}

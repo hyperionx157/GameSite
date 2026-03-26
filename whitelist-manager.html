@@ -252,7 +252,7 @@
         <div id="connectionStatus">Connecting to Firebase...</div>
     </div>
 
-    <!-- Approved Users - NOW USES users COLLECTION -->
+    <!-- Approved Users -->
     <div class="card">
         <h3>✅ Approved Users <span id="approvedCount" class="count-badge">0</span></h3>
         <div id="approvedList"><div class="empty-row">Loading...</div></div>
@@ -335,7 +335,7 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 // ─── State ────────────────────────────────────────────────────────────────────
-let approvedUsers = [];      // Now stores user documents from users collection
+let approvedUsers = [];
 let pendingRequests = [];
 let liveUsers = [];
 
@@ -398,10 +398,10 @@ function setStatus(msg, cls) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// REAL-TIME LISTENERS - FIXED to use correct collections
+// REAL-TIME LISTENERS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// ─── Approved Users - NOW from users collection where allowed = true ─────────
+// Approved Users - from users collection where allowed = true
 db.collection('users').where('allowed', '==', true).onSnapshot(snap => {
     approvedUsers = [];
     snap.forEach(doc => {
@@ -419,7 +419,7 @@ db.collection('users').where('allowed', '==', true).onSnapshot(snap => {
     setStatus('Connected · ' + approvedUsers.length + ' approved users · Live updates active', 'connected');
 }, err => setStatus('Listener error: ' + err.message, 'error'));
 
-// ─── Pending requests ─────────────────────────────────────────────────────────
+// Pending requests
 db.collection('pendingRequests').onSnapshot(snap => {
     pendingRequests = [];
     snap.forEach(doc => {
@@ -435,7 +435,7 @@ db.collection('pendingRequests').onSnapshot(snap => {
     renderPending();
 }, err => console.error('Pending listener:', err));
 
-// ─── Live users ─────────────────────────────────────────────────────────────
+// Live users
 db.collection('liveUsers').onSnapshot(snap => {
     const now = new Date();
     liveUsers = [];
@@ -457,7 +457,7 @@ db.collection('liveUsers').onSnapshot(snap => {
     renderLive();
 }, err => console.error('Live users listener:', err));
 
-// ─── Chat ─────────────────────────────────────────────────────────────────────
+// Chat
 db.collection('chatMessages')
     .orderBy('timestamp', 'asc')
     .limitToLast(80)
@@ -489,7 +489,7 @@ db.collection('chatMessages')
         log.scrollTop = log.scrollHeight;
     }, err => console.error('Chat listener:', err));
 
-// ─── Content Suggestions ──────────────────────────────────────────────────────
+// Content Suggestions
 db.collection('contentSuggestions')
     .orderBy('createdAt', 'desc')
     .limitToLast(50)
@@ -612,24 +612,21 @@ function renderLive() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ACTIONS - FIXED to use correct collections
+// ACTIONS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// Add user to whitelist
 async function addUser() {
     const input = document.getElementById('newUsername');
     const username = input.value.trim();
     if (!username) { toast('Please enter a username.', 'error'); return; }
     
     try {
-        // Check if already exists
         const existing = await db.collection('users').doc(username).get();
         if (existing.exists) {
             toast('User already exists.', 'error');
             return;
         }
         
-        // Add to users collection
         await db.collection('users').doc(username).set({
             username: username,
             displayName: username,
@@ -638,7 +635,6 @@ async function addUser() {
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         
-        // Remove from pending if exists
         await db.collection('pendingRequests').doc(username).delete();
         
         input.value = '';
@@ -649,10 +645,11 @@ async function addUser() {
     }
 }
 
-// Approve user from pending
+// APPROVE USER - IMPROVED WITH NOTIFICATION
 async function approveUser(username) {
     try {
-        // Get pending request data
+        console.log('✅ Approving user:', username);
+        
         const pendingDoc = await db.collection('pendingRequests').doc(username).get();
         if (!pendingDoc.exists) {
             toast('No pending request found.', 'error');
@@ -660,8 +657,8 @@ async function approveUser(username) {
         }
         
         const data = pendingDoc.data();
+        console.log('📋 Pending data:', data);
         
-        // Add to users collection
         await db.collection('users').doc(username).set({
             username: username,
             displayName: data.displayName || username,
@@ -673,17 +670,35 @@ async function approveUser(username) {
             approvedBy: firebase.auth().currentUser?.email || 'admin'
         });
         
-        // Delete pending request
+        console.log('✅ Added to users collection with allowed=true');
+        
         await db.collection('pendingRequests').doc(username).delete();
+        console.log('✅ Deleted pending request');
+        
+        // Send a system message to notify the user
+        if (data.uid) {
+            await db.collection('chatMessages').add({
+                text: `🎉 Your account has been approved! You can now log in.`,
+                author: 'System',
+                authorId: 'system',
+                recipient: username,
+                isSystem: true,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            console.log('✅ Sent notification message');
+        }
         
         toast(username + ' approved! They can now sign in.', 'success');
+        
+        renderApproved();
+        renderPending();
+        
     } catch(e) {
         console.error('Error approving user:', e);
-        toast('Error approving user.', 'error');
+        toast('Error approving user: ' + e.message, 'error');
     }
 }
 
-// Deny user
 async function denyUser(username) {
     if (!confirm('Deny request from ' + username + '?')) return;
     try {
@@ -695,7 +710,6 @@ async function denyUser(username) {
     }
 }
 
-// Remove user from whitelist
 async function removeUser(username) {
     if (!confirm('Remove ' + username + ' from the whitelist?')) return;
     try {
@@ -707,7 +721,6 @@ async function removeUser(username) {
     }
 }
 
-// Kick user
 async function kickUser(sessionId, username) {
     if (!confirm('Kick ' + username + '?')) return;
     try {
@@ -726,7 +739,6 @@ async function kickUser(sessionId, username) {
     }
 }
 
-// Kick all users
 async function kickAllUsers() {
     if (!confirm('Kick ALL ' + liveUsers.length + ' users?')) return;
     const batch = db.batch();
@@ -742,7 +754,6 @@ async function kickAllUsers() {
     toast('All users kicked.', 'success');
 }
 
-// Send admin message
 async function sendAdminMessage() {
     const input = document.getElementById('adminChatInput');
     const text = input.value.trim();
@@ -759,13 +770,11 @@ async function sendAdminMessage() {
     toast('Message sent.', 'success');
 }
 
-// Delete chat message
 async function deleteChatMsg(id) {
     await db.collection('chatMessages').doc(id).delete();
     toast('Message deleted.', 'success');
 }
 
-// Clear all chat
 async function clearAllChat() {
     if (!confirm('Delete ALL chat messages?')) return;
     const snap = await db.collection('chatMessages').get();
@@ -775,14 +784,12 @@ async function clearAllChat() {
     toast('Chat cleared.', 'success');
 }
 
-// Delete suggestion
 async function deleteSuggestion(id) {
     if (!confirm('Delete this suggestion?')) return;
     await db.collection('contentSuggestions').doc(id).delete();
     toast('Suggestion deleted.', 'success');
 }
 
-// Clear all suggestions
 async function clearAllSuggestions() {
     if (!confirm('Delete ALL content suggestions?')) return;
     const snap = await db.collection('contentSuggestions').get();
@@ -792,7 +799,6 @@ async function clearAllSuggestions() {
     toast('All suggestions cleared.', 'success');
 }
 
-// Clear all pending
 async function clearAllPending() {
     if (!confirm('Clear ALL pending requests?')) return;
     const snap = await db.collection('pendingRequests').get();
@@ -802,7 +808,6 @@ async function clearAllPending() {
     toast('All pending requests cleared.', 'success');
 }
 
-// Create test request
 async function createTestRequest() {
     const id = 'testuser_' + Date.now();
     await db.collection('pendingRequests').doc(id).set({
@@ -816,7 +821,6 @@ async function createTestRequest() {
     toast('Test request created.', 'success');
 }
 
-// Refresh all
 function refreshAll() {
     debug('Refreshing...');
     renderApproved();
@@ -826,11 +830,10 @@ function refreshAll() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// EVENT LISTENERS (using event delegation for dynamic elements)
+// EVENT LISTENERS
 // ═══════════════════════════════════════════════════════════════════════════════
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Static buttons
     document.getElementById('addUserBtn')?.addEventListener('click', addUser);
     document.getElementById('clearAllPendingBtn')?.addEventListener('click', clearAllPending);
     document.getElementById('kickAllUsersBtn')?.addEventListener('click', kickAllUsers);
@@ -840,34 +843,27 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('createTestRequestBtn')?.addEventListener('click', createTestRequest);
     document.getElementById('refreshBtn')?.addEventListener('click', refreshAll);
     
-    // Event delegation for dynamic buttons
     document.body.addEventListener('click', (e) => {
-        // Approve button
         if (e.target.classList.contains('approve-user-btn')) {
             const username = e.target.getAttribute('data-username');
             approveUser(username);
         }
-        // Deny button
         else if (e.target.classList.contains('deny-user-btn')) {
             const username = e.target.getAttribute('data-username');
             denyUser(username);
         }
-        // Remove user button
         else if (e.target.classList.contains('remove-user-btn')) {
             const username = e.target.getAttribute('data-username');
             removeUser(username);
         }
-        // Kick user button
         else if (e.target.classList.contains('kick-user-btn')) {
             const sessionId = e.target.getAttribute('data-session-id');
             const username = e.target.getAttribute('data-username');
             kickUser(sessionId, username);
         }
-        // Delete chat message
         else if (e.target.getAttribute('data-msg-id')) {
             deleteChatMsg(e.target.getAttribute('data-msg-id'));
         }
-        // Delete suggestion
         else if (e.target.getAttribute('data-suggestion-id')) {
             deleteSuggestion(e.target.getAttribute('data-suggestion-id'));
         }
