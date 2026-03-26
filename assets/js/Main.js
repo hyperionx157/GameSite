@@ -559,6 +559,12 @@ function initAuth() {
             const username = user.email ? user.email.replace('@gamehub.local', '') : user.uid;
             console.log('🔐 Auth state changed - User:', username);
             
+            // Check if signup is in progress - if so, skip approval check
+            if (sessionStorage.getItem('signupInProgress') === 'true') {
+                console.log('⏳ Signup in progress, skipping approval check');
+                return;
+            }
+            
             // Load last read timestamp
             const saved = localStorage.getItem('lastReadChat_' + user.uid);
             lastReadTimestamp = saved ? new Date(saved) : new Date();
@@ -639,20 +645,24 @@ function initAuth() {
 // ── DOMContentLoaded ──────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function(){
     db = firebase.firestore();
+    
     var menuToggle = document.getElementById('menuToggleBtn');
     if (menuToggle) menuToggle.addEventListener('click', toggleSideMenu);
+    
     document.querySelectorAll('.side-nav-btn').forEach(function(btn){
         btn.addEventListener('click', function(){
             var section = this.getAttribute('data-section');
             if (section) switchSection(section);
         });
     });
+    
     var logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', function(){
             firebase.auth().signOut().then(returnToHub);
         });
     }
+    
     var loginBtn      = document.getElementById('loginBtn');
     var emailInput    = document.getElementById('emailInput');
     var passwordInput = document.getElementById('passwordInput');
@@ -712,6 +722,8 @@ document.addEventListener('DOMContentLoaded', function(){
     var signupRealName = document.getElementById('signupRealName');
     var signupName     = document.getElementById('signupName');
     var signupPassword = document.getElementById('signupPassword');
+    var signupLink     = document.getElementById('signupLink');
+    var backToLogin    = document.getElementById('backToLogin');
     
     if (signupBtn) {
         signupBtn.addEventListener('click', function(){
@@ -728,6 +740,9 @@ document.addEventListener('DOMContentLoaded', function(){
             
             console.log('📝 Starting signup for:', name);
             
+            // Set a flag to indicate signup is in progress
+            sessionStorage.setItem('signupInProgress', 'true');
+            
             // Check if username already exists in whitelist
             db.collection('users').doc(name).get()
                 .then(function(userDoc) {
@@ -735,6 +750,7 @@ document.addEventListener('DOMContentLoaded', function(){
                         alert('Username already exists. Please choose another.');
                         signupBtn.disabled = false;
                         signupBtn.textContent = 'Create Account';
+                        sessionStorage.removeItem('signupInProgress');
                         return null;
                     }
                     return db.collection('pendingRequests').doc(name).get();
@@ -744,13 +760,14 @@ document.addEventListener('DOMContentLoaded', function(){
                         alert('This username is already pending approval.');
                         signupBtn.disabled = false;
                         signupBtn.textContent = 'Create Account';
+                        sessionStorage.removeItem('signupInProgress');
                         return null;
                     }
                     // Create the account
                     return firebase.auth().createUserWithEmailAndPassword(email, pass);
                 })
                 .then(function(userCredential) {
-                    if (!userCredential) return;
+                    if (!userCredential) return null;
                     const user = userCredential.user;
                     console.log('✅ Account created in Firebase Auth:', user.email);
                     
@@ -770,22 +787,24 @@ document.addEventListener('DOMContentLoaded', function(){
                         })
                         .then(function() {
                             console.log('✅ Added to pendingRequests');
-                            // Sign out immediately - they need approval
                             return firebase.auth().signOut();
-                        })
-                        .then(function() {
-                            console.log('✅ Signed out');
-                            alert('Account created! Your account is pending approval. You will be notified when approved.');
-                            // Clear form
-                            signupRealName.value = '';
-                            signupName.value = '';
-                            signupPassword.value = '';
-                            // Switch back to login form
-                            showEl('loginForm');
-                            hideEl('signupForm');
-                            signupBtn.disabled = false;
-                            signupBtn.textContent = 'Create Account';
                         });
+                })
+                .then(function() {
+                    if (signupBtn.disabled) {
+                        console.log('✅ Signed out');
+                        sessionStorage.removeItem('signupInProgress');
+                        alert('Account created! Your account is pending approval. You will be notified when approved.');
+                        // Clear form
+                        signupRealName.value = '';
+                        signupName.value = '';
+                        signupPassword.value = '';
+                        // Switch back to login form
+                        showEl('loginForm');
+                        hideEl('signupForm');
+                        signupBtn.disabled = false;
+                        signupBtn.textContent = 'Create Account';
+                    }
                 })
                 .catch(function(error) {
                     console.error('Signup error:', error);
@@ -803,13 +822,12 @@ document.addEventListener('DOMContentLoaded', function(){
                     alert(errorMessage);
                     signupBtn.disabled = false;
                     signupBtn.textContent = 'Create Account';
+                    sessionStorage.removeItem('signupInProgress');
                 });
         });
     }
     
-    var signupLink  = document.getElementById('signupLink');
-    var backToLogin = document.getElementById('backToLogin');
-    if (signupLink)  signupLink.addEventListener('click',  function(e){ e.preventDefault(); showEl('signupForm'); hideEl('loginForm'); });
+    if (signupLink) signupLink.addEventListener('click', function(e){ e.preventDefault(); showEl('signupForm'); hideEl('loginForm'); });
     if (backToLogin) backToLogin.addEventListener('click', function(e){ e.preventDefault(); showEl('loginForm'); hideEl('signupForm'); });
     
     document.addEventListener('keydown', function(e){
@@ -833,6 +851,7 @@ document.addEventListener('DOMContentLoaded', function(){
     if (miniChat) miniChat.addEventListener('click', function(){ hideMiniMenu(); showGameChat(); });
     var gcClose = document.getElementById('gameChatClose');
     if (gcClose) gcClose.addEventListener('click', hideGameChat);
+    
     showEl('loadingOverlay');
     initAuth();
 });
