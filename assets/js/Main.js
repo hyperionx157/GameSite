@@ -123,7 +123,7 @@ function hideEl(id) {
     if (e) e.style.display = 'none';
 }
 
-// Migration function for existing string timestamps
+// Migration function for existing string timestamps (call once if needed)
 async function migrateExistingMessages() {
     try {
         const snapshot = await db.collection('chatMessages').get();
@@ -132,8 +132,10 @@ async function migrateExistingMessages() {
         
         snapshot.forEach(doc => {
             const data = doc.data();
+            // If timestamp is a string (ISO format), convert it
             if (typeof data.timestamp === 'string') {
                 const timestampDate = new Date(data.timestamp);
+                // Only convert if it's a valid date
                 if (!isNaN(timestampDate.getTime())) {
                     batch.update(doc.ref, {
                         timestamp: firebase.firestore.Timestamp.fromDate(timestampDate)
@@ -262,6 +264,7 @@ function initChat() {
             renderChatMessages();
         });
 
+    // Use liveUsers for online count (replaces presence)
     db.collection('liveUsers').onSnapshot(function(snapshot) {
         var onlineCount = snapshot.size;
         var label = onlineCount + ' online';
@@ -468,14 +471,13 @@ function updateUserProfile(user) {
 function initAuth() {
     firebase.auth().onAuthStateChanged(function(user){
         if (user) {
-            // FIXED: Check whitelist from settings document
-            db.collection('settings').doc('whitelist').get()
+            // Extract username from email (remove @gamehub.local)
+            const username = user.email ? user.email.replace('@gamehub.local', '') : user.uid;
+            
+            // Check if user is whitelisted in the users collection
+            db.collection('users').doc(username).get()
                 .then(function(doc) {
-                    var whitelist = doc.exists && doc.data().approvedUsers ? doc.data().approvedUsers : [];
-                    var username = user.email ? user.email.replace('@gamehub.local', '') : user.uid;
-                    
-                    if (whitelist.includes(username)) {
-                        // Store user details
+                    if (doc.exists && doc.data().allowed === true) {
                         currentUserData = { 
                             uid: user.uid, 
                             email: user.email, 
@@ -484,13 +486,14 @@ function initAuth() {
                         };
                         localStorage.setItem('currentUser', JSON.stringify(currentUserData));
                         
-                        // Save user to users collection for reference
-                        db.collection('users').doc(user.uid).set({
-                            uid: user.uid,
+                        // Update or create user document with latest info
+                        db.collection('users').doc(username).set({
                             username: username,
                             displayName: user.displayName || username,
                             email: user.email,
-                            lastLogin: firebase.firestore.FieldValue.serverTimestamp()
+                            uid: user.uid,
+                            lastLogin: firebase.firestore.FieldValue.serverTimestamp(),
+                            allowed: true
                         }, { merge: true });
                         
                         updateUserProfile(user);
@@ -501,18 +504,20 @@ function initAuth() {
                         initForum();
                         initGameGrid();
                         switchSection('home');
-                        
-                        // Optional: Run migration once
-                        // migrateExistingMessages();
                     } else {
-                        // User not whitelisted - sign them out and remove account
+                        // User not whitelisted, sign them out
                         firebase.auth().signOut();
-                        alert('Your account is pending approval. Please wait for an administrator to approve your account.');
+                        if (doc.exists) {
+                            alert('Your account is pending approval. Please wait for an administrator to approve your account.');
+                        } else {
+                            alert('Account not found. Please sign up first.');
+                        }
                         hideEl('loadingOverlay');
                     }
                 })
                 .catch(function(error) {
                     console.error('Whitelist check error:', error);
+                    // On error, sign out for safety
                     firebase.auth().signOut();
                     alert('Authentication error. Please try again.');
                     hideEl('loadingOverlay');
@@ -562,11 +567,14 @@ document.addEventListener('DOMContentLoaded', function(){
             var raw  = emailInput    ? emailInput.value.trim() : '';
             var pass = passwordInput ? passwordInput.value     : '';
             if (!raw || !pass) { alert('Please enter your username and password.'); return; }
+            // If it looks like a plain username (no @), append the domain used at signup
             var email = raw.includes('@') ? raw : raw + '@gamehub.local';
             firebase.auth().signInWithEmailAndPassword(email, pass)
                 .catch(function(e){ 
                     if (e.code === 'auth/user-not-found') {
                         alert('Account not found. Please sign up first.');
+                    } else if (e.code === 'auth/wrong-password') {
+                        alert('Incorrect password. Please try again.');
                     } else {
                         alert('Login failed: ' + e.message);
                     }
@@ -577,7 +585,7 @@ document.addEventListener('DOMContentLoaded', function(){
         });
     }
 
-    // Signup - FIXED: Add user to pending requests
+    // Signup - Add user to pending requests for admin approval
     var signupBtn      = document.getElementById('signupBtn');
     var signupRealName = document.getElementById('signupRealName');
     var signupName     = document.getElementById('signupName');
@@ -592,16 +600,15 @@ document.addEventListener('DOMContentLoaded', function(){
             
             var email = name + '@gamehub.local';
             
-            // Check if username already exists in whitelist or pending
-            db.collection('settings').doc('whitelist').get()
-                .then(function(whitelistDoc) {
-                    var whitelist = whitelistDoc.exists ? whitelistDoc.data().approvedUsers : [];
-                    if (whitelist.includes(name)) {
+            // Check if username already exists in users collection
+            db.collection('users').doc(name).get()
+                .then(function(userDoc) {
+                    if (userDoc.exists) {
                         alert('Username already exists. Please choose another.');
                         return;
                     }
                     
-                    // Check pending requests
+                    // Check if already pending
                     return db.collection('pendingRequests').doc(name).get().then(function(pendingDoc) {
                         if (pendingDoc.exists) {
                             alert('This username is already pending approval.');
@@ -613,7 +620,7 @@ document.addEventListener('DOMContentLoaded', function(){
                             .then(function(cred) {
                                 return cred.user.updateProfile({ displayName: real || name })
                                     .then(function() {
-                                        // Add to pending requests
+                                        // Add to pending requests for admin approval
                                         return db.collection('pendingRequests').doc(name).set({
                                             username: name,
                                             displayName: real || name,
