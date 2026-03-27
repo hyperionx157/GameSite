@@ -66,6 +66,7 @@ var unreadChatCount = 0;
 var lastReadTimestamp = null;
 var userNotifications = [];
 var unreadNotifications = 0;
+var authCheckInProgress = false;
 
 // ── Helpers ─────────────────────────────────────────────────────────
 function getInitials(name) {
@@ -112,6 +113,13 @@ function showEl(id, display) {
 function hideEl(id) {
     var e = document.getElementById(id);
     if (e) e.style.display = 'none';
+}
+
+function clearAllSessionFlags() {
+    sessionStorage.removeItem('signupInProgress');
+    sessionStorage.removeItem('justApproved');
+    sessionStorage.removeItem('justCheckedStatus');
+    sessionStorage.removeItem('userApprovalStatus');
 }
 
 // ── Chat Badge Functions ─────────────────────────────────────────────
@@ -618,22 +626,29 @@ function updateUserProfile(user) {
 // ── Auth ─────────────────────────────────────────────────────────────
 function initAuth() {
     firebase.auth().onAuthStateChanged(function(user){
+        // Prevent multiple simultaneous checks
+        if (authCheckInProgress) {
+            console.log('⏳ Auth check already in progress, skipping');
+            return;
+        }
+        authCheckInProgress = true;
+        
         if (user) {
             const username = user.email ? user.email.replace('@gamehub.local', '') : user.uid;
             console.log('🔐 Auth state changed - User:', username);
             
+            // Clear signup flag if it exists
             if (sessionStorage.getItem('signupInProgress') === 'true') {
-                console.log('⏳ Signup in progress, skipping approval check');
-                return;
+                console.log('⏳ Clearing leftover signup flag');
+                sessionStorage.removeItem('signupInProgress');
             }
             
             const saved = localStorage.getItem('lastReadChat_' + user.uid);
             lastReadTimestamp = saved ? new Date(saved) : new Date();
             
+            // Check if user is in whitelist
             db.collection('users').doc(username).get()
                 .then(function(doc) {
-                    console.log('📄 User document check:', doc.exists ? 'Exists' : 'Not found');
-                    
                     if (doc.exists && doc.data().allowed === true) {
                         console.log('✅ User is approved, granting access');
                         currentUserData = { 
@@ -655,6 +670,7 @@ function initAuth() {
                         initGameGrid();
                         initNotifications();
                         switchSection('home');
+                        authCheckInProgress = false;
                     } else {
                         console.log('⚠️ User not approved, checking pending status...');
                         
@@ -668,9 +684,6 @@ function initAuth() {
                                         alert('Your account is pending approval. You will be notified when approved.');
                                     }
                                     firebase.auth().signOut();
-                                    hideEl('loadingOverlay');
-                                    showEl('loginHub', 'flex');
-                                    hideEl('mainApp');
                                 } else {
                                     console.log('🔍 Checking for approval notification...');
                                     db.collection('notifications')
@@ -686,7 +699,6 @@ function initAuth() {
                                                 showApprovalPopup(notif);
                                                 markNotificationRead(notif.id);
                                                 alert('🎉 Your account has been approved! You can now log in.');
-                                                // Auto sign in after approval
                                                 setTimeout(() => {
                                                     window.location.reload();
                                                 }, 2000);
@@ -696,19 +708,17 @@ function initAuth() {
                                                     alert('Account not found. Please sign up first.');
                                                 }
                                                 firebase.auth().signOut();
-                                                hideEl('loadingOverlay');
-                                                showEl('loginHub', 'flex');
-                                                hideEl('mainApp');
                                             }
                                         })
                                         .catch(function(err) {
                                             console.error('Error checking notifications:', err);
                                             firebase.auth().signOut();
-                                            hideEl('loadingOverlay');
-                                            showEl('loginHub', 'flex');
-                                            hideEl('mainApp');
                                         });
                                 }
+                                hideEl('loadingOverlay');
+                                showEl('loginHub', 'flex');
+                                hideEl('mainApp');
+                                authCheckInProgress = false;
                             })
                             .catch(function(err) {
                                 console.error('Error checking pending:', err);
@@ -716,6 +726,7 @@ function initAuth() {
                                 hideEl('loadingOverlay');
                                 showEl('loginHub', 'flex');
                                 hideEl('mainApp');
+                                authCheckInProgress = false;
                             });
                     }
                 })
@@ -726,14 +737,17 @@ function initAuth() {
                     hideEl('loadingOverlay');
                     showEl('loginHub', 'flex');
                     hideEl('mainApp');
+                    authCheckInProgress = false;
                 });
         } else {
             console.log('🔐 No user logged in');
             currentUserData = null;
             localStorage.removeItem('currentUser');
+            clearAllSessionFlags();
             hideEl('mainApp');
             showEl('loginHub', 'flex');
             hideEl('loadingOverlay');
+            authCheckInProgress = false;
         }
     });
 }
@@ -755,6 +769,7 @@ document.addEventListener('DOMContentLoaded', function(){
     var logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', function(){
+            clearAllSessionFlags();
             firebase.auth().signOut().then(returnToHub);
         });
     }
@@ -769,6 +784,10 @@ document.addEventListener('DOMContentLoaded', function(){
             if (!raw || !pass) { alert('Please enter your username and password.'); return; }
             var email = raw.includes('@') ? raw : raw + '@gamehub.local';
             console.log('🔑 Attempting login with email:', email);
+            
+            // Clear any stale flags before login attempt
+            clearAllSessionFlags();
+            
             firebase.auth().signInWithEmailAndPassword(email, pass)
                 .then(() => {
                     console.log('✅ Login successful');
@@ -781,6 +800,8 @@ document.addEventListener('DOMContentLoaded', function(){
                         alert('Incorrect password. Please try again.');
                     } else if (e.code === 'auth/invalid-credential') {
                         alert('Invalid credentials. Please check your username and password.');
+                    } else if (e.code === 'auth/too-many-requests') {
+                        alert('Too many failed login attempts. Please try again later.');
                     } else {
                         alert('Login failed: ' + e.message);
                     }
@@ -865,6 +886,7 @@ document.addEventListener('DOMContentLoaded', function(){
             
             sessionStorage.setItem('signupInProgress', 'true');
             
+            // Clear any stale data first
             db.collection('users').doc(name).get()
                 .then(function(userDoc) {
                     if (userDoc.exists) {
