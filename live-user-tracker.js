@@ -85,6 +85,9 @@ if (!currentUser || !currentUser.username) {
         if (title.includes('minesweeperplus')) return 'Playing MinesweeperPlus';
         if (title.includes('pizza tower')) return 'Playing Pizza Tower';
         if (title.includes('schoolboy runaway')) return 'Playing SchoolBoy Runaway';
+        if (title.includes('undertale yellow')) return 'Playing Undertale Yellow';
+        if (title.includes('omori')) return 'Playing Omori';
+        if (title.includes('ddlc')) return 'Playing DDLC';
         if (title.includes('pokemon emerald')) return 'Playing Pokemon Emerald';
         if (title.includes('need for speed')) return 'Playing Need for Speed';
         if (title.includes('call of duty')) return 'Playing Call of Duty';

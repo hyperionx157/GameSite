@@ -65,6 +65,8 @@ var currentItemKey = null;
 var allMessages     = [];
 var unreadChatCount = 0;
 var lastReadTimestamp = null;
+var userNotifications = [];
+var unreadNotifications = 0;
 
 // ── Helpers ─────────────────────────────────────────────────────────
 function getInitials(name) {
@@ -150,43 +152,55 @@ function markChatAsRead() {
     updateChatBadges();
 }
 
-// ── Real-time Approval Listener ─────────────────────────────────────
-function listenForApprovalStatus() {
+// ── Notification Functions ─────────────────────────────────────────────
+function initNotifications() {
     const user = firebase.auth().currentUser;
     if (!user) return;
     
     const username = user.email ? user.email.replace('@gamehub.local', '') : user.uid;
+    console.log('🔔 Initializing notifications for:', username);
     
-    db.collection('users').doc(username).onSnapshot(function(doc) {
-        if (!doc.exists) return;
-        
-        const data = doc.data();
-        const previousStatus = sessionStorage.getItem('userApprovalStatus');
-        const currentStatus = data.allowed ? 'approved' : 'pending';
-        
-        if (previousStatus === 'pending' && currentStatus === 'approved') {
-            console.log('🎉 User was approved!');
-            showApprovalNotification();
-            alert('🎉 Your account has been approved! You can now log in.');
-            setTimeout(() => {
-                firebase.auth().signOut().then(() => {
-                    window.location.reload();
-                });
-            }, 3000);
-        }
-        
-        sessionStorage.setItem('userApprovalStatus', currentStatus);
-    }, function(error) {
-        console.error('Error listening for approval:', error);
-    });
+    // Listen for notifications for this user
+    db.collection('notifications')
+        .where('username', '==', username)
+        .orderBy('createdAt', 'desc')
+        .limitToLast(20)
+        .onSnapshot(snapshot => {
+            userNotifications = [];
+            unreadNotifications = 0;
+            
+            snapshot.forEach(doc => {
+                const notif = doc.data();
+                notif.id = doc.id;
+                userNotifications.push(notif);
+                if (!notif.read) {
+                    unreadNotifications++;
+                }
+            });
+            
+            console.log(`📬 ${unreadNotifications} unread notifications`);
+            checkForNewApproval();
+        });
 }
 
-function showApprovalNotification() {
-    if (document.getElementById('approvalNotification')) return;
+function checkForNewApproval() {
+    // Check if there's an unread approval notification
+    const approvalNotif = userNotifications.find(n => n.type === 'approval' && !n.read);
+    if (approvalNotif) {
+        console.log('🎉 Found new approval notification!');
+        showApprovalPopup(approvalNotif);
+        markNotificationRead(approvalNotif.id);
+    }
+}
+
+function showApprovalPopup(notification) {
+    // Remove existing popup
+    const existing = document.getElementById('approvalPopup');
+    if (existing) existing.remove();
     
-    const notification = document.createElement('div');
-    notification.id = 'approvalNotification';
-    notification.style.cssText = `
+    const popup = document.createElement('div');
+    popup.id = 'approvalPopup';
+    popup.style.cssText = `
         position: fixed;
         top: 20px;
         right: 20px;
@@ -202,28 +216,98 @@ function showApprovalNotification() {
         align-items: center;
         gap: 10px;
         cursor: pointer;
+        max-width: 350px;
     `;
-    notification.innerHTML = `
-        <i class="fas fa-check-circle" style="font-size: 20px;"></i>
+    popup.innerHTML = `
+        <i class="fas fa-check-circle" style="font-size: 24px;"></i>
         <div>
-            <strong>Account Approved!</strong>
-            <div style="font-size: 12px; opacity: 0.9;">You can now log in. Redirecting...</div>
+            <strong style="font-size: 16px;">${notification.title || 'Account Approved!'}</strong>
+            <div style="font-size: 13px; margin-top: 4px;">${notification.message}</div>
+            <div style="font-size: 11px; margin-top: 6px;">You can now log in!</div>
         </div>
-        <button style="background: none; border: none; color: white; cursor: pointer; margin-left: 10px;">✕</button>
+        <button style="background: none; border: none; color: white; cursor: pointer; margin-left: 10px; font-size: 16px;">✕</button>
     `;
     
-    const style = document.createElement('style');
-    style.textContent = `
-        @keyframes slideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
+    // Add animation style if not exists
+    if (!document.getElementById('notificationAnimStyle')) {
+        const style = document.createElement('style');
+        style.id = 'notificationAnimStyle';
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    document.body.appendChild(popup);
+    
+    // Close button
+    popup.querySelector('button').onclick = () => {
+        popup.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => popup.remove(), 300);
+    };
+    
+    // Auto remove after 6 seconds
+    setTimeout(() => {
+        if (popup) {
+            popup.style.animation = 'slideOut 0.3s ease';
+            setTimeout(() => popup.remove(), 300);
         }
-    `;
-    document.head.appendChild(style);
-    document.body.appendChild(notification);
+    }, 6000);
+}
+
+async function markNotificationRead(notificationId) {
+    try {
+        await db.collection('notifications').doc(notificationId).update({
+            read: true,
+            readAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        console.log('✅ Notification marked as read');
+    } catch(e) {
+        console.error('Error marking notification as read:', e);
+    }
+}
+
+// Listen for approval notifications (for pending users on login page)
+function listenForApprovalNotifications(username) {
+    console.log('👂 Listening for approval notifications for:', username);
     
-    notification.querySelector('button').onclick = () => notification.remove();
-    setTimeout(() => { if (notification) notification.remove(); }, 5000);
+    db.collection('notifications')
+        .where('username', '==', username)
+        .where('type', '==', 'approval')
+        .onSnapshot(snapshot => {
+            snapshot.forEach(doc => {
+                const notif = doc.data();
+                if (!notif.read) {
+                    console.log('🎉 Approval notification received!');
+                    
+                    // Mark as read
+                    db.collection('notifications').doc(doc.id).update({ read: true });
+                    
+                    // Set flag to prevent "account not found" error
+                    sessionStorage.setItem('justApproved', 'true');
+                    
+                    // Show popup notification
+                    showApprovalPopup(notif);
+                    
+                    // Alert the user
+                    alert('🎉 Your account has been approved! You can now log in.');
+                    
+                    // Auto redirect to login page after 2 seconds
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                }
+            });
+        }, error => {
+            console.error('Error listening for notifications:', error);
+        });
 }
 
 // ── Section switching ────────────────────────────────────────────────
@@ -569,68 +653,83 @@ function initAuth() {
             const saved = localStorage.getItem('lastReadChat_' + user.uid);
             lastReadTimestamp = saved ? new Date(saved) : new Date();
             
-            db.collection('users').doc(username).get()
-                .then(function(doc) {
-                    if (doc.exists && doc.data().allowed === true) {
-                        // User is approved
-                        currentUserData = { 
-                            uid: user.uid, 
-                            email: user.email, 
-                            displayName: user.displayName || username,
-                            username: username
-                        };
-                        localStorage.setItem('currentUser', JSON.stringify(currentUserData));
-                        db.collection('users').doc(username).update({
-                            lastLogin: firebase.firestore.FieldValue.serverTimestamp()
-                        }).catch(() => {});
-                        updateUserProfile(user);
-                        showEl('mainApp');
-                        hideEl('loginHub');
+            // Add a small delay to ensure Firestore has the data
+            setTimeout(() => {
+                db.collection('users').doc(username).get()
+                    .then(function(doc) {
+                        console.log('📄 User document check:', doc.exists ? 'Exists' : 'Not found');
+                        if (doc.exists && doc.data().allowed === true) {
+                            // User is approved
+                            console.log('✅ User is approved, granting access');
+                            currentUserData = { 
+                                uid: user.uid, 
+                                email: user.email, 
+                                displayName: user.displayName || username,
+                                username: username
+                            };
+                            localStorage.setItem('currentUser', JSON.stringify(currentUserData));
+                            db.collection('users').doc(username).update({
+                                lastLogin: firebase.firestore.FieldValue.serverTimestamp()
+                            }).catch(() => {});
+                            updateUserProfile(user);
+                            showEl('mainApp');
+                            hideEl('loginHub');
+                            hideEl('loadingOverlay');
+                            initChat();
+                            initForum();
+                            initGameGrid();
+                            initNotifications();
+                            switchSection('home');
+                        } else {
+                            // User not approved - check if they're pending
+                            console.log('⚠️ User not approved, checking pending status...');
+                            
+                            db.collection('pendingRequests').doc(username).get()
+                                .then(function(pendingDoc) {
+                                    if (pendingDoc.exists) {
+                                        console.log('⏳ User is pending approval');
+                                        sessionStorage.setItem('userApprovalStatus', 'pending');
+                                        // Listen for approval notifications
+                                        listenForApprovalNotifications(username);
+                                        // Don't show alert on login page if they're just checking
+                                        if (!sessionStorage.getItem('justCheckedStatus')) {
+                                            alert('Your account is pending approval. You will be notified when approved.');
+                                        }
+                                    } else {
+                                        // Check if they were just approved but we haven't caught it yet
+                                        console.log('❌ No pending request found for', username);
+                                        // Don't show error if they just got approved
+                                        if (!sessionStorage.getItem('justApproved')) {
+                                            alert('Account not found. Please sign up first.');
+                                        }
+                                    }
+                                    // Sign out since they're not approved
+                                    firebase.auth().signOut();
+                                    hideEl('loadingOverlay');
+                                    showEl('loginHub', 'flex');
+                                    hideEl('mainApp');
+                                    // Clear flags
+                                    sessionStorage.removeItem('justApproved');
+                                    sessionStorage.removeItem('justCheckedStatus');
+                                })
+                                .catch(function(err) {
+                                    console.error('Error checking pending:', err);
+                                    firebase.auth().signOut();
+                                    hideEl('loadingOverlay');
+                                    showEl('loginHub', 'flex');
+                                    hideEl('mainApp');
+                                });
+                        }
+                    })
+                    .catch(function(error) {
+                        console.error('Whitelist check error:', error);
+                        firebase.auth().signOut();
+                        alert('Authentication error. Please try again.');
                         hideEl('loadingOverlay');
-                        initChat();
-                        initForum();
-                        initGameGrid();
-                        switchSection('home');
-                    } else {
-                        // User not approved - check if they're pending
-                        console.log('⚠️ User not approved, checking pending status...');
-                        
-                        db.collection('pendingRequests').doc(username).get()
-                            .then(function(pendingDoc) {
-                                if (pendingDoc.exists) {
-                                    console.log('⏳ User is pending approval');
-                                    // Set pending status and listen for approval
-                                    sessionStorage.setItem('userApprovalStatus', 'pending');
-                                    listenForApprovalStatus();
-                                    alert('Your account is pending approval. You will be notified when approved.');
-                                } else {
-                                    // This shouldn't happen if signup worked
-                                    console.log('❌ No pending request found for', username);
-                                    alert('Account not found. Please sign up first.');
-                                }
-                                // Sign out since they're not approved
-                                firebase.auth().signOut();
-                                hideEl('loadingOverlay');
-                                showEl('loginHub', 'flex');
-                                hideEl('mainApp');
-                            })
-                            .catch(function(err) {
-                                console.error('Error checking pending:', err);
-                                firebase.auth().signOut();
-                                hideEl('loadingOverlay');
-                                showEl('loginHub', 'flex');
-                                hideEl('mainApp');
-                            });
-                    }
-                })
-                .catch(function(error) {
-                    console.error('Whitelist check error:', error);
-                    firebase.auth().signOut();
-                    alert('Authentication error. Please try again.');
-                    hideEl('loadingOverlay');
-                    showEl('loginHub', 'flex');
-                    hideEl('mainApp');
-                });
+                        showEl('loginHub', 'flex');
+                        hideEl('mainApp');
+                    });
+            }, 500); // 500ms delay to ensure Firestore consistency
         } else {
             console.log('🔐 No user logged in');
             currentUserData = null;
@@ -698,22 +797,33 @@ document.addEventListener('DOMContentLoaded', function(){
                 return;
             }
             const username = user.email ? user.email.replace('@gamehub.local', '') : user.uid;
+            
+            // Set flag to suppress pending alert
+            sessionStorage.setItem('justCheckedStatus', 'true');
+            
             try {
                 const userDoc = await db.collection('users').doc(username).get();
                 if (userDoc.exists && userDoc.data().allowed === true) {
+                    console.log('✅ User is approved!');
                     alert('🎉 Your account has been approved! You can now log in.');
                     window.location.reload();
                 } else {
                     const pendingDoc = await db.collection('pendingRequests').doc(username).get();
                     if (pendingDoc.exists) {
+                        console.log('⏳ User is still pending');
                         alert('⏳ Your account is still pending approval. Please wait for an administrator to approve your account.');
                     } else {
+                        console.log('❌ No account found');
                         alert('❌ Account not found. Please sign up first.');
                     }
                 }
             } catch(e) {
                 console.error('Error checking status:', e);
                 alert('Error checking status. Please try again.');
+            } finally {
+                setTimeout(() => {
+                    sessionStorage.removeItem('justCheckedStatus');
+                }, 1000);
             }
         });
     }
