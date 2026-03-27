@@ -26,13 +26,15 @@ const GAME_URLS = {
     'sudoku':            'https://www.crazygames.com/embed/sudoku',
     'minesweeper':       'https://www.crazygames.com/embed/minesweeper',
     'cookie-clicker':    'games/html5/cookieclicker.html',
-    'retro-bowl':        'games/html5/retrobowl.html',
-    'ovo':               'games/html5/ovo.html',
-    'adofai':            'games/html5/adofai.html',
-    'getaway-shootout':  'games/html5/getaway-shootout.html',
+    'jetpackjoyride':   'games/html5/jetpackjoyride.html',
+    'getaway-shootout': 'games/html5/getaway-shootout.html',
+    'omori-fixed':       'games/html5/omori-fixed.html',
+    'ddlc-web':          'games/html5/ddlc-web.html',
+    'undertale-yellow':   'games/html5/undertale-yellow.html',
     'eaglercraft':       'games/html5/eaglercraft.html',
     'crazycattle3d':     'games/html5/crazycattle3d.html',
-    'ucn':              'games/html5/UCN.html'
+    'ucn':              'games/html5/ucn.html',
+    'adofai':            'games/html5/adofai.html'
 };
 
 // ── Firebase db — assigned inside DOMContentLoaded ──────────────────
