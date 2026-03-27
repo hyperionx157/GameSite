@@ -28,9 +28,6 @@ const GAME_URLS = {
     'cookie-clicker':    'games/html5/cookieclicker.html',
     'jetpackjoyride':   'games/html5/jetpackjoyride.html',
     'getaway-shootout': 'games/html5/getaway-shootout.html',
-    'omori-fixed':       'games/html5/omori-fixed.html',
-    'ddlc-web':          'games/html5/ddlc-web.html',
-    'undertale-yellow':   'games/html5/undertale-yellow.html',
     'eaglercraft':       'games/html5/eaglercraft.html',
     'crazycattle3d':     'games/html5/crazycattle3d.html',
     'ucn':              'games/html5/ucn.html',
@@ -162,7 +159,6 @@ function initNotifications() {
     const username = user.email ? user.email.replace('@gamehub.local', '') : user.uid;
     console.log('🔔 Initializing notifications for:', username);
     
-    // Listen for notifications for this user
     db.collection('notifications')
         .where('username', '==', username)
         .orderBy('createdAt', 'desc')
@@ -186,7 +182,6 @@ function initNotifications() {
 }
 
 function checkForNewApproval() {
-    // Check if there's an unread approval notification
     const approvalNotif = userNotifications.find(n => n.type === 'approval' && !n.read);
     if (approvalNotif) {
         console.log('🎉 Found new approval notification!');
@@ -196,7 +191,6 @@ function checkForNewApproval() {
 }
 
 function showApprovalPopup(notification) {
-    // Remove existing popup
     const existing = document.getElementById('approvalPopup');
     if (existing) existing.remove();
     
@@ -230,7 +224,6 @@ function showApprovalPopup(notification) {
         <button style="background: none; border: none; color: white; cursor: pointer; margin-left: 10px; font-size: 16px;">✕</button>
     `;
     
-    // Add animation style if not exists
     if (!document.getElementById('notificationAnimStyle')) {
         const style = document.createElement('style');
         style.id = 'notificationAnimStyle';
@@ -249,13 +242,11 @@ function showApprovalPopup(notification) {
     
     document.body.appendChild(popup);
     
-    // Close button
     popup.querySelector('button').onclick = () => {
         popup.style.animation = 'slideOut 0.3s ease';
         setTimeout(() => popup.remove(), 300);
     };
     
-    // Auto remove after 6 seconds
     setTimeout(() => {
         if (popup) {
             popup.style.animation = 'slideOut 0.3s ease';
@@ -276,7 +267,6 @@ async function markNotificationRead(notificationId) {
     }
 }
 
-// Listen for approval notifications (for pending users on login page)
 function listenForApprovalNotifications(username) {
     console.log('👂 Listening for approval notifications for:', username);
     
@@ -288,20 +278,10 @@ function listenForApprovalNotifications(username) {
                 const notif = doc.data();
                 if (!notif.read) {
                     console.log('🎉 Approval notification received!');
-                    
-                    // Mark as read
                     db.collection('notifications').doc(doc.id).update({ read: true });
-                    
-                    // Set flag to prevent "account not found" error
                     sessionStorage.setItem('justApproved', 'true');
-                    
-                    // Show popup notification
                     showApprovalPopup(notif);
-                    
-                    // Alert the user
                     alert('🎉 Your account has been approved! You can now log in.');
-                    
-                    // Auto redirect to login page after 2 seconds
                     setTimeout(() => {
                         window.location.reload();
                     }, 2000);
@@ -421,7 +401,6 @@ function initChat() {
             snapshot.forEach(function(doc){ allMessages.push(doc.data()); });
             renderChatMessages();
             
-            // Update unread count
             const user = firebase.auth().currentUser;
             if (user && lastReadTimestamp) {
                 let unread = 0;
@@ -456,7 +435,6 @@ function initChat() {
     if (gSend)  gSend.addEventListener('click', function(){ sendMessage(gInput); });
     if (gInput) gInput.addEventListener('keypress', function(e){ if (e.key === 'Enter') sendMessage(gInput); });
     
-    // Mark as read when chat section is shown
     const chatSection = document.getElementById('sectionChat');
     const observer = new MutationObserver(() => {
         if (chatSection && chatSection.classList.contains('active-section')) {
@@ -465,7 +443,6 @@ function initChat() {
     });
     if (chatSection) observer.observe(chatSection, { attributes: true, attributeFilter: ['class'] });
     
-    // Mark as read when game chat is opened
     const gameChatPanel = document.getElementById('gameChat');
     if (gameChatPanel) {
         const chatObserver = new MutationObserver(() => {
@@ -645,23 +622,19 @@ function initAuth() {
             const username = user.email ? user.email.replace('@gamehub.local', '') : user.uid;
             console.log('🔐 Auth state changed - User:', username);
             
-            // Check if signup is in progress - if so, skip approval check
             if (sessionStorage.getItem('signupInProgress') === 'true') {
                 console.log('⏳ Signup in progress, skipping approval check');
                 return;
             }
             
-            // Load last read timestamp
             const saved = localStorage.getItem('lastReadChat_' + user.uid);
             lastReadTimestamp = saved ? new Date(saved) : new Date();
             
-            // Check users collection first
             db.collection('users').doc(username).get()
                 .then(function(doc) {
                     console.log('📄 User document check:', doc.exists ? 'Exists' : 'Not found');
                     
                     if (doc.exists && doc.data().allowed === true) {
-                        // User is approved - grant access
                         console.log('✅ User is approved, granting access');
                         currentUserData = { 
                             uid: user.uid, 
@@ -683,7 +656,6 @@ function initAuth() {
                         initNotifications();
                         switchSection('home');
                     } else {
-                        // User not approved - check pending requests
                         console.log('⚠️ User not approved, checking pending status...');
                         
                         db.collection('pendingRequests').doc(username).get()
@@ -691,19 +663,15 @@ function initAuth() {
                                 if (pendingDoc.exists) {
                                     console.log('⏳ User is pending approval');
                                     sessionStorage.setItem('userApprovalStatus', 'pending');
-                                    // Listen for approval notifications
                                     listenForApprovalNotifications(username);
-                                    // Show pending message
                                     if (!sessionStorage.getItem('justCheckedStatus')) {
                                         alert('Your account is pending approval. You will be notified when approved.');
                                     }
-                                    // Sign out
                                     firebase.auth().signOut();
                                     hideEl('loadingOverlay');
                                     showEl('loginHub', 'flex');
                                     hideEl('mainApp');
                                 } else {
-                                    // Check if there's a notification (they might have been approved)
                                     console.log('🔍 Checking for approval notification...');
                                     db.collection('notifications')
                                         .where('username', '==', username)
@@ -717,10 +685,11 @@ function initAuth() {
                                                 notif.id = notifSnapshot.docs[0].id;
                                                 showApprovalPopup(notif);
                                                 markNotificationRead(notif.id);
-                                                // Mark as read and allow login
                                                 alert('🎉 Your account has been approved! You can now log in.');
-                                                // Force reload to log in
-                                                window.location.reload();
+                                                // Auto sign in after approval
+                                                setTimeout(() => {
+                                                    window.location.reload();
+                                                }, 2000);
                                             } else {
                                                 console.log('❌ No account found for', username);
                                                 if (!sessionStorage.getItem('justApproved')) {
@@ -799,12 +768,19 @@ document.addEventListener('DOMContentLoaded', function(){
             var pass = passwordInput ? passwordInput.value     : '';
             if (!raw || !pass) { alert('Please enter your username and password.'); return; }
             var email = raw.includes('@') ? raw : raw + '@gamehub.local';
+            console.log('🔑 Attempting login with email:', email);
             firebase.auth().signInWithEmailAndPassword(email, pass)
+                .then(() => {
+                    console.log('✅ Login successful');
+                })
                 .catch(function(e){ 
+                    console.error('Login error:', e.code, e.message);
                     if (e.code === 'auth/user-not-found') {
                         alert('Account not found. Please sign up first.');
                     } else if (e.code === 'auth/wrong-password') {
                         alert('Incorrect password. Please try again.');
+                    } else if (e.code === 'auth/invalid-credential') {
+                        alert('Invalid credentials. Please check your username and password.');
                     } else {
                         alert('Login failed: ' + e.message);
                     }
@@ -815,7 +791,6 @@ document.addEventListener('DOMContentLoaded', function(){
         });
     }
     
-    // Check Status Button
     var checkStatusBtn = document.getElementById('checkStatusBtn');
     if (checkStatusBtn) {
         checkStatusBtn.addEventListener('click', async function() {
@@ -826,7 +801,6 @@ document.addEventListener('DOMContentLoaded', function(){
             }
             const username = user.email ? user.email.replace('@gamehub.local', '') : user.uid;
             
-            // Set flag to suppress pending alert
             sessionStorage.setItem('justCheckedStatus', 'true');
             
             try {
@@ -841,7 +815,6 @@ document.addEventListener('DOMContentLoaded', function(){
                         console.log('⏳ User is still pending');
                         alert('⏳ Your account is still pending approval. Please wait for an administrator to approve your account.');
                     } else {
-                        // Check notifications
                         const notifSnapshot = await db.collection('notifications')
                             .where('username', '==', username)
                             .where('type', '==', 'approval')
@@ -885,16 +858,13 @@ document.addEventListener('DOMContentLoaded', function(){
             if (pass.length < 6) { alert('Password must be at least 6 characters.'); return; }
             var email = name + '@gamehub.local';
             
-            // Disable button
             signupBtn.disabled = true;
             signupBtn.textContent = 'Creating Account...';
             
             console.log('📝 Starting signup for:', name);
             
-            // Set a flag to indicate signup is in progress
             sessionStorage.setItem('signupInProgress', 'true');
             
-            // Check if username already exists in whitelist
             db.collection('users').doc(name).get()
                 .then(function(userDoc) {
                     if (userDoc.exists) {
@@ -914,7 +884,6 @@ document.addEventListener('DOMContentLoaded', function(){
                         sessionStorage.removeItem('signupInProgress');
                         return null;
                     }
-                    // Create the account
                     return firebase.auth().createUserWithEmailAndPassword(email, pass);
                 })
                 .then(function(userCredential) {
@@ -922,10 +891,8 @@ document.addEventListener('DOMContentLoaded', function(){
                     const user = userCredential.user;
                     console.log('✅ Account created in Firebase Auth:', user.email);
                     
-                    // Update profile
                     return user.updateProfile({ displayName: real || name })
                         .then(function() {
-                            // Add to pending requests
                             return db.collection('pendingRequests').doc(name).set({
                                 username: name,
                                 displayName: real || name,
@@ -946,11 +913,9 @@ document.addEventListener('DOMContentLoaded', function(){
                         console.log('✅ Signed out');
                         sessionStorage.removeItem('signupInProgress');
                         alert('Account created! Your account is pending approval. You will be notified when approved.');
-                        // Clear form
                         signupRealName.value = '';
                         signupName.value = '';
                         signupPassword.value = '';
-                        // Switch back to login form
                         showEl('loginForm');
                         hideEl('signupForm');
                         signupBtn.disabled = false;
