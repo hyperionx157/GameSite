@@ -645,11 +645,12 @@ async function addUser() {
     }
 }
 
-// APPROVE USER - IMPROVED WITH NOTIFICATION
+// Approve user from pending - SENDS PRIVATE NOTIFICATION
 async function approveUser(username) {
     try {
-        console.log('✅ Approving user:', username);
+        console.log('✅ Starting approval for:', username);
         
+        // Get pending request data
         const pendingDoc = await db.collection('pendingRequests').doc(username).get();
         if (!pendingDoc.exists) {
             toast('No pending request found.', 'error');
@@ -659,6 +660,7 @@ async function approveUser(username) {
         const data = pendingDoc.data();
         console.log('📋 Pending data:', data);
         
+        // Add to users collection
         await db.collection('users').doc(username).set({
             username: username,
             displayName: data.displayName || username,
@@ -670,26 +672,26 @@ async function approveUser(username) {
             approvedBy: firebase.auth().currentUser?.email || 'admin'
         });
         
-        console.log('✅ Added to users collection with allowed=true');
+        console.log('✅ Added to users collection');
         
+        // Delete pending request
         await db.collection('pendingRequests').doc(username).delete();
         console.log('✅ Deleted pending request');
         
-        // Send a system message to notify the user
-        if (data.uid) {
-            await db.collection('chatMessages').add({
-                text: `🎉 Your account has been approved! You can now log in.`,
-                author: 'System',
-                authorId: 'system',
-                recipient: username,
-                isSystem: true,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp()
-            });
-            console.log('✅ Sent notification message');
-        }
+        // CREATE PRIVATE NOTIFICATION (NOT PUBLIC CHAT MESSAGE)
+        await db.collection('notifications').add({
+            username: username,
+            type: 'approval',
+            title: '🎉 Account Approved!',
+            message: `Your account has been approved by ${firebase.auth().currentUser?.displayName || 'an administrator'}. You can now log in!`,
+            read: false,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        console.log('✅ Created private notification for user');
         
-        toast(username + ' approved! They can now sign in.', 'success');
+        toast(username + ' approved! They will receive a notification.', 'success');
         
+        // Refresh displays
         renderApproved();
         renderPending();
         
