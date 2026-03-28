@@ -109,9 +109,6 @@ if (!currentUser || !currentUser.username) {
         if (title.includes('eaglercraft')) return 'Playing Eaglercraft';
         if (title.includes('crazycattle3d')) return 'Playing Crazy Cattle 3D';
         if (title.includes('ucn')) return 'Playing Five Nights at Freddy\'s UCN';
-        if (title.includes('omori-fixed')) return 'Playing Omori';
-        if (title.includes('ddlc-web')) return 'Playing DDLC';
-        if (title.includes('undertale-yellow')) return 'Playing Undertale Yellow';
         
         // General categories
         if (path.includes('suggestions')) return 'Viewing Content Suggestions Forum';

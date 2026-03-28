@@ -645,12 +645,11 @@ async function addUser() {
     }
 }
 
-// Approve user from pending - SENDS PRIVATE NOTIFICATION
+// Approve user from pending - sends PRIVATE NOTIFICATION (not public chat)
 async function approveUser(username) {
     try {
         console.log('✅ Starting approval for:', username);
         
-        // Get pending request data
         const pendingDoc = await db.collection('pendingRequests').doc(username).get();
         if (!pendingDoc.exists) {
             toast('No pending request found.', 'error');
@@ -660,7 +659,6 @@ async function approveUser(username) {
         const data = pendingDoc.data();
         console.log('📋 Pending data:', data);
         
-        // Add to users collection
         await db.collection('users').doc(username).set({
             username: username,
             displayName: data.displayName || username,
@@ -674,11 +672,10 @@ async function approveUser(username) {
         
         console.log('✅ Added to users collection');
         
-        // Delete pending request
         await db.collection('pendingRequests').doc(username).delete();
         console.log('✅ Deleted pending request');
         
-        // CREATE PRIVATE NOTIFICATION (NOT PUBLIC CHAT MESSAGE)
+        // Create private notification (NO public chat message)
         await db.collection('notifications').add({
             username: username,
             type: 'approval',
@@ -691,7 +688,6 @@ async function approveUser(username) {
         
         toast(username + ' approved! They will receive a notification.', 'success');
         
-        // Refresh displays
         renderApproved();
         renderPending();
         

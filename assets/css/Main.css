@@ -121,18 +121,6 @@ a.side-nav-link {
     display: flex;
 }
 
-.side-badge {
-    margin-left: auto;
-    background: #e74c3c;
-    color: #fff;
-    font-size: 0.65rem;
-    font-weight: 700;
-    border-radius: 999px;
-    padding: 1px 6px;
-    min-width: 18px;
-    text-align: center;
-}
-
 /* Footer */
 .side-menu-footer {
     padding: 0.8rem 0.6rem;
@@ -814,6 +802,22 @@ a.side-nav-link {
     .home-cards  { grid-template-columns: 1fr 1fr; }
     .game-chat-panel { width: calc(100vw - 24px); right: 12px; }
 }
+
+/* ── Badge Styles ─────────────────────────────────────── */
+/* Sidebar unread badge */
+.side-badge {
+    margin-left: auto;
+    background: #e74c3c;
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: 1px 6px;
+    min-width: 18px;
+    text-align: center;
+    animation: pulse 1s ease-in-out infinite;
+}
+
 /* Unread badge for mini menu */
 .unread-badge {
     background: #e74c3c;
@@ -829,24 +833,12 @@ a.side-nav-link {
     animation: pulse 1s ease-in-out infinite;
 }
 
+/* Pulse animation for badges */
 @keyframes pulse {
     0%, 100% { transform: scale(1); }
     50% { transform: scale(1.1); }
 }
 
-/* Sidebar unread badge */
-.side-badge {
-    margin-left: auto;
-    background: #e74c3c;
-    color: #fff;
-    font-size: 0.65rem;
-    font-weight: 700;
-    border-radius: 999px;
-    padding: 1px 6px;
-    min-width: 18px;
-    text-align: center;
-    animation: pulse 1s ease-in-out infinite;
-}
 /* Notification popup animations */
 @keyframes slideIn {
     from { transform: translateX(100%); opacity: 0; }
@@ -856,38 +848,4 @@ a.side-nav-link {
 @keyframes slideOut {
     from { transform: translateX(0); opacity: 1; }
     to { transform: translateX(100%); opacity: 0; }
-}
-
-/* Unread badge for mini menu */
-.unread-badge {
-    background: #e74c3c;
-    color: white;
-    font-size: 0.65rem;
-    font-weight: bold;
-    padding: 2px 6px;
-    border-radius: 10px;
-    margin-left: 6px;
-    min-width: 18px;
-    text-align: center;
-    display: inline-block;
-    animation: pulse 1s ease-in-out infinite;
-}
-
-@keyframes pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.1); }
-}
-
-/* Sidebar unread badge */
-.side-badge {
-    margin-left: auto;
-    background: #e74c3c;
-    color: #fff;
-    font-size: 0.65rem;
-    font-weight: 700;
-    border-radius: 999px;
-    padding: 1px 6px;
-    min-width: 18px;
-    text-align: center;
-    animation: pulse 1s ease-in-out infinite;
 }
