@@ -115,6 +115,7 @@ if (!currentUser || !currentUser.username) {
         if (title.includes('fnaf4')) return 'Playing Five Nights at Freddy\'s 4';
         if (title.includes('sister location')) return 'Playing Five Nights at Freddy\'s: Sister Location';
         if (title.includes('pizzeria simulator')) return 'Playing Five Nights at Freddy\'s: Pizzeria Simulator';
+        if (title.includes('fnaf world')) return 'Playing Five Nights at Freddy\'s World';
         
         // General categories
         if (path.includes('suggestions')) return 'Viewing Content Suggestions Forum';
