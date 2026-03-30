@@ -38,7 +38,8 @@ const GAME_URLS = {
     'fnaf3':            CLOUDFLARE_R2_BASE + '3/index.html',
     'fnaf4':            CLOUDFLARE_R2_BASE + '4/index.html',
     'fnaf-sister-location': CLOUDFLARE_R2_BASE + 'sl/index.html',
-    'fnaf-pizzeria-simulator': CLOUDFLARE_R2_BASE + 'ps/index.html'
+    'fnaf-pizzeria-simulator': CLOUDFLARE_R2_BASE + 'ps/index.html',
+    'fnaf-world':        CLOUDFLARE_R2_BASE + 'w/index.html'
 };
 
 // ── Firebase db — assigned inside DOMContentLoaded ──────────────────
