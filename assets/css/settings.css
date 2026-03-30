@@ -468,3 +468,103 @@ kbd {
     .settings-main { padding: 1.2rem; }
     .cloak-grid, .theme-grid, .panic-presets-grid { grid-template-columns: repeat(2, 1fr); }
 }
+/* Special Themes Grid */
+.special-themes-section {
+    margin-top: 1rem;
+}
+
+.special-themes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.special-theme-card {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+    color: var(--text);
+    text-align: center;
+}
+
+.special-theme-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+}
+
+.special-theme-card.active {
+    border-color: var(--accent);
+    background: rgba(155,89,182,0.1);
+    box-shadow: 0 0 0 2px var(--accent);
+}
+
+.special-theme-card small {
+    font-size: 0.7rem;
+    color: var(--muted);
+}
+
+.special-theme-preview {
+    width: 80px;
+    height: 80px;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+}
+
+.preview-bg {
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+    transition: transform 0.3s;
+}
+
+.special-theme-card:hover .preview-bg {
+    transform: scale(1.1);
+}
+
+.preview-label {
+    position: absolute;
+    bottom: 4px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 0.7rem;
+    font-weight: bold;
+    background: rgba(0,0,0,0.6);
+    color: white;
+    padding: 2px;
+}
+
+/* Theme Preview Backgrounds */
+.miku-preview .preview-bg {
+    background: linear-gradient(135deg, #39c5bb, #e5b3c2);
+    position: relative;
+}
+
+.miku-preview .preview-bg::after {
+    content: "🎤";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 2rem;
+}
+
+.cyberpunk-preview .preview-bg {
+    background: linear-gradient(135deg, #ff00ff, #00ffff);
+}
+
+.darkmatter-preview .preview-bg {
+    background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+}

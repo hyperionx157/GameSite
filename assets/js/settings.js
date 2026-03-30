@@ -1,13 +1,12 @@
 // ═══════════════════════════════════════════════════════════════════
 // DEV PORTAL — settings.js
-// Handles: Tab Cloaking, Color Theme, Panic Button
+// Handles: Tab Cloaking, Color Theme, Panic Button, Special Themes
 // ═══════════════════════════════════════════════════════════════════
 
 // Ensure Firebase is initialized before trying to use it
 if (typeof firebase === 'undefined') {
     console.error('[Settings] Firebase not loaded!');
 } else {
-    // Wait for Firebase to be ready if not already
     if (!firebase.apps.length) {
         const firebaseConfig = {
             apiKey: "AIzaSyDhj564xAhZSR-3sxYcR8WFqVABt0PNCcs",
@@ -24,17 +23,120 @@ if (typeof firebase === 'undefined') {
 
 (function () {
     'use strict';
-    // ... rest of your settings.js code ...
-})();
-
-(function () {
-    'use strict';
 
     // ── Storage keys ────────────────────────────────────────────────
     var KEY_CLOAK       = 'gh_cloak';
     var KEY_THEME       = 'gh_theme';
     var KEY_PANIC_KEY   = 'gh_panic_key';
     var KEY_PANIC_URL   = 'gh_panic_url';
+    var KEY_SPECIAL_THEME = 'gh_special_theme';
+
+    // ── Special Themes ────────────────────────────────────────────────
+    const SPECIAL_THEMES = {
+        miku: {
+            name: 'miku',
+            cssClass: 'theme-miku',
+            images: true,
+            colors: {
+                accent: '#39c5bb',
+                accent2: '#e5b3c2',
+                bg: '#1a2a2a',
+                surface: '#2a3a3a',
+                surface2: '#3a4a4a'
+            }
+        },
+        cyberpunk: {
+            name: 'cyberpunk',
+            cssClass: 'theme-cyberpunk',
+            images: true,
+            colors: {
+                accent: '#ff00ff',
+                accent2: '#00ffff',
+                bg: '#0a0a0a',
+                surface: '#1a1a2e',
+                surface2: '#2a2a4a'
+            }
+        },
+        darkmatter: {
+            name: 'darkmatter',
+            cssClass: 'theme-darkmatter',
+            images: true,
+            colors: {
+                accent: '#8b5cf6',
+                accent2: '#a855f7',
+                bg: '#050510',
+                surface: '#0a0a20',
+                surface2: '#101030'
+            }
+        }
+    };
+
+    function applySpecialTheme(themeName, save) {
+        const theme = SPECIAL_THEMES[themeName];
+        if (!theme) return false;
+        
+        const root = document.documentElement;
+        
+        // Remove any existing special theme classes
+        Object.keys(SPECIAL_THEMES).forEach(t => {
+            root.classList.remove(SPECIAL_THEMES[t].cssClass);
+        });
+        
+        // Add new theme class
+        root.classList.add(theme.cssClass);
+        
+        // Apply colors
+        if (theme.colors) {
+            root.style.setProperty('--accent', theme.colors.accent);
+            root.style.setProperty('--accent2', theme.colors.accent2);
+            root.style.setProperty('--bg', theme.colors.bg);
+            root.style.setProperty('--surface', theme.colors.surface);
+            root.style.setProperty('--surface2', theme.colors.surface2);
+        }
+        
+        if (save !== false) {
+            localStorage.setItem(KEY_SPECIAL_THEME, themeName);
+            // Also remove regular theme when special theme is applied
+            localStorage.removeItem(KEY_THEME);
+        }
+        
+        return true;
+    }
+
+    function removeSpecialTheme() {
+        const root = document.documentElement;
+        Object.keys(SPECIAL_THEMES).forEach(t => {
+            root.classList.remove(SPECIAL_THEMES[t].cssClass);
+        });
+        localStorage.removeItem(KEY_SPECIAL_THEME);
+    }
+
+    function initSpecialThemes() {
+        const specialCards = document.querySelectorAll('.special-theme-card');
+        specialCards.forEach(card => {
+            card.addEventListener('click', () => {
+                specialCards.forEach(c => c.classList.remove('active'));
+                card.classList.add('active');
+                
+                const themeName = card.getAttribute('data-theme');
+                applySpecialTheme(themeName);
+                
+                // Also remove any regular theme selection
+                document.querySelectorAll('.theme-card').forEach(c => c.classList.remove('active'));
+            });
+        });
+    }
+
+    function loadSavedSpecialTheme() {
+        const savedTheme = localStorage.getItem(KEY_SPECIAL_THEME);
+        if (savedTheme && SPECIAL_THEMES[savedTheme]) {
+            applySpecialTheme(savedTheme, false);
+            const activeCard = document.querySelector(`.special-theme-card[data-theme="${savedTheme}"]`);
+            if (activeCard) activeCard.classList.add('active');
+            return true;
+        }
+        return false;
+    }
 
     // ── Tab switching ────────────────────────────────────────────────
     document.querySelectorAll('.settings-nav-btn').forEach(function (btn) {
@@ -58,11 +160,9 @@ if (typeof firebase === 'undefined') {
     // TAB CLOAKING
     // ══════════════════════════════════════════════════════════════════
 
-    // Apply a cloak: changes title + favicon in the current tab
     function applyCloak(title, faviconSrc, faviconType, save) {
         if (title) document.title = title;
 
-        // Remove existing dynamic favicon
         var existing = document.getElementById('gh-dynamic-favicon');
         if (existing) existing.remove();
 
@@ -72,7 +172,6 @@ if (typeof firebase === 'undefined') {
             link.rel  = 'icon';
 
             if (faviconType === 'emoji') {
-                // Draw emoji onto a canvas and use as data URL
                 var canvas  = document.createElement('canvas');
                 canvas.width = canvas.height = 64;
                 var ctx = canvas.getContext('2d');
@@ -100,17 +199,14 @@ if (typeof firebase === 'undefined') {
 
     function removeCloak() {
         localStorage.removeItem(KEY_CLOAK);
-        // Restore to Dev Portal defaults
         document.title = 'Settings — Dev Portal';
         var existing = document.getElementById('gh-dynamic-favicon');
         if (existing) existing.remove();
-        // Add back the default emoji favicon
         applyCloak('Settings — Dev Portal', '📁', 'emoji', false);
         updateCloakStatus(null);
         document.querySelectorAll('.cloak-card').forEach(function (c) {
             c.classList.remove('active');
         });
-        // Mark default active
         var defaultCard = document.querySelector('.cloak-card[data-title="Dev Portal"]');
         if (defaultCard) defaultCard.classList.add('active');
     }
@@ -132,7 +228,6 @@ if (typeof firebase === 'undefined') {
         statusEl.style.display = 'none';
     }
 
-    // Preset cloak cards
     document.querySelectorAll('.cloak-card').forEach(function (card) {
         card.addEventListener('click', function () {
             document.querySelectorAll('.cloak-card').forEach(function (c) { c.classList.remove('active'); });
@@ -145,7 +240,6 @@ if (typeof firebase === 'undefined') {
         });
     });
 
-    // Custom cloak
     var applyCustomBtn = document.getElementById('applyCustomCloak');
     if (applyCustomBtn) {
         applyCustomBtn.addEventListener('click', function () {
@@ -157,25 +251,21 @@ if (typeof firebase === 'undefined') {
         });
     }
 
-    // Remove cloak button
     var removeCloakBtn = document.getElementById('removeCloakBtn');
     if (removeCloakBtn) removeCloakBtn.addEventListener('click', removeCloak);
 
-    // ── Load saved cloak ─────────────────────────────────────────────
     function loadSavedCloak() {
         var stored = localStorage.getItem(KEY_CLOAK);
         if (stored) {
             try {
                 var data = JSON.parse(stored);
                 applyCloak(data.title, data.favicon, data.faviconType, false);
-                // Highlight matching preset card
                 document.querySelectorAll('.cloak-card').forEach(function (c) {
                     if (c.getAttribute('data-title') === data.title) c.classList.add('active');
                 });
                 updateCloakStatus(data.title);
-            } catch (e) { /* ignore bad data */ }
+            } catch (e) { }
         } else {
-            // Default: mark Dev Portal card active
             var defaultCard = document.querySelector('.cloak-card[data-title="Dev Portal"]');
             if (defaultCard) defaultCard.classList.add('active');
         }
@@ -196,13 +286,15 @@ if (typeof firebase === 'undefined') {
 
         if (save !== false) {
             localStorage.setItem(KEY_THEME, JSON.stringify({ vars: vars, key: themeKey || 'custom' }));
+            // Remove special theme when regular theme is applied
+            localStorage.removeItem(KEY_SPECIAL_THEME);
         }
     }
 
-    // Preset theme cards
     document.querySelectorAll('.theme-card').forEach(function (card) {
         card.addEventListener('click', function () {
             document.querySelectorAll('.theme-card').forEach(function (c) { c.classList.remove('active'); });
+            document.querySelectorAll('.special-theme-card').forEach(function (c) { c.classList.remove('active'); });
             this.classList.add('active');
 
             var vars = {
@@ -215,7 +307,6 @@ if (typeof firebase === 'undefined') {
             };
             applyTheme(vars, true, this.getAttribute('data-theme'));
 
-            // Sync color picker
             var picker = document.getElementById('customAccentColor');
             var hex    = document.getElementById('customAccentHex');
             if (picker) picker.value = vars.accent;
@@ -223,7 +314,6 @@ if (typeof firebase === 'undefined') {
         });
     });
 
-    // Custom color picker
     var colorPicker = document.getElementById('customAccentColor');
     var colorHex    = document.getElementById('customAccentHex');
 
@@ -243,14 +333,13 @@ if (typeof firebase === 'undefined') {
     if (applyCustomThemeBtn) {
         applyCustomThemeBtn.addEventListener('click', function () {
             var color = colorPicker ? colorPicker.value : '#9b59b6';
-            // Darken by ~15% for accent2
             var accent2 = shadeColor(color, -15);
             document.querySelectorAll('.theme-card').forEach(function (c) { c.classList.remove('active'); });
+            document.querySelectorAll('.special-theme-card').forEach(function (c) { c.classList.remove('active'); });
             applyTheme({ accent: color, accent2: accent2 }, true, 'custom');
         });
     }
 
-    // Darken/lighten a hex color
     function shadeColor(hex, percent) {
         var num = parseInt(hex.replace('#', ''), 16);
         var r   = Math.min(255, Math.max(0, (num >> 16) + percent * 2.55 | 0));
@@ -259,29 +348,28 @@ if (typeof firebase === 'undefined') {
         return '#' + [r, g, b].map(function (v) { return v.toString(16).padStart(2, '0'); }).join('');
     }
 
-    // ── Load saved theme ─────────────────────────────────────────────
     function loadSavedTheme() {
+        // Check special theme first
+        if (loadSavedSpecialTheme()) return;
+        
         var stored = localStorage.getItem(KEY_THEME);
         if (stored) {
             try {
                 var data = JSON.parse(stored);
                 applyTheme(data.vars, false, data.key);
 
-                // Highlight the matching card
                 document.querySelectorAll('.theme-card').forEach(function (c) {
                     if (c.getAttribute('data-theme') === data.key) c.classList.add('active');
                 });
 
-                // Sync picker
                 if (data.vars.accent) {
                     var picker = document.getElementById('customAccentColor');
                     var hex    = document.getElementById('customAccentHex');
                     if (picker) picker.value = data.vars.accent;
                     if (hex)    hex.value   = data.vars.accent;
                 }
-            } catch (e) { /* ignore */ }
+            } catch (e) { }
         } else {
-            // Default purple active
             var defaultCard = document.querySelector('.theme-card[data-theme="purple"]');
             if (defaultCard) defaultCard.classList.add('active');
         }
@@ -309,7 +397,6 @@ if (typeof firebase === 'undefined') {
             if (!listening) return;
             e.preventDefault();
             var key = e.key;
-            // Prettify display
             var display = key === ' ' ? 'Space' : key;
             this.value = display;
             this.blur();
@@ -323,7 +410,6 @@ if (typeof firebase === 'undefined') {
         });
     }
 
-    // Preset panic destination cards
     var selectedPanicUrl = '';
     document.querySelectorAll('.panic-preset-card').forEach(function (card) {
         card.addEventListener('click', function () {
@@ -335,7 +421,6 @@ if (typeof firebase === 'undefined') {
         });
     });
 
-    // Save panic settings
     var savePanicBtn = document.getElementById('savePanicSettings');
     if (savePanicBtn) {
         savePanicBtn.addEventListener('click', function () {
@@ -362,7 +447,6 @@ if (typeof firebase === 'undefined') {
         if (urlEl) urlEl.textContent = url || 'Not set';
     }
 
-    // ── Load saved panic settings ────────────────────────────────────
     function loadSavedPanic() {
         var key = localStorage.getItem(KEY_PANIC_KEY);
         var url = localStorage.getItem(KEY_PANIC_URL);
@@ -371,11 +455,9 @@ if (typeof firebase === 'undefined') {
 
         if (url) {
             selectedPanicUrl = url;
-            // Highlight matching preset
             document.querySelectorAll('.panic-preset-card').forEach(function (card) {
                 if (card.getAttribute('data-url') === url) card.classList.add('active');
             });
-            // If no preset matches, put in custom field
             var matched = document.querySelector('.panic-preset-card.active');
             if (!matched) {
                 var customInput = document.getElementById('customPanicUrl');
@@ -389,20 +471,28 @@ if (typeof firebase === 'undefined') {
     loadSavedCloak();
     loadSavedTheme();
     loadSavedPanic();
+    initSpecialThemes();
 
 })();
 
-
 // ══════════════════════════════════════════════════════════════════════
-// SHARED UTILITIES — loaded on every page (index.html + settings.html)
-// Theme and panic key must apply on ALL pages, not just settings.html
+// SHARED UTILITIES — loaded on every page
 // ══════════════════════════════════════════════════════════════════════
 
-// Apply saved theme vars on page load (runs on index.html too via shared import)
 (function applyPersistedSettings() {
     // Theme
     var savedTheme = localStorage.getItem('gh_theme');
-    if (savedTheme) {
+    var savedSpecialTheme = localStorage.getItem('gh_special_theme');
+    
+    if (savedSpecialTheme) {
+        const SPECIAL_THEMES = {
+            miku: 'theme-miku',
+            cyberpunk: 'theme-cyberpunk',
+            darkmatter: 'theme-darkmatter'
+        };
+        const themeClass = SPECIAL_THEMES[savedSpecialTheme];
+        if (themeClass) document.documentElement.classList.add(themeClass);
+    } else if (savedTheme) {
         try {
             var data = JSON.parse(savedTheme);
             var root = document.documentElement;
@@ -443,7 +533,7 @@ if (typeof firebase === 'undefined') {
         } catch (e) {}
     }
 
-    // Panic key — listen on this page
+    // Panic key
     document.addEventListener('keydown', function (e) {
         var panicKey = localStorage.getItem('gh_panic_key');
         var panicUrl = localStorage.getItem('gh_panic_url');

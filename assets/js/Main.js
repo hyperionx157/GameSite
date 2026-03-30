@@ -67,6 +67,8 @@ var unreadChatCount = 0;
 var lastReadTimestamp = null;
 var userNotifications = [];
 var unreadNotifications = 0;
+var currentSessionId = null;
+var sessionCheckInterval = null;
 
 // ── Helpers ─────────────────────────────────────────────────────────
 function getInitials(name) {
@@ -113,6 +115,135 @@ function showEl(id, display) {
 function hideEl(id) {
     var e = document.getElementById(id);
     if (e) e.style.display = 'none';
+}
+
+// ── Session Management ────────────────────────────────────────────────
+function generateSessionId() {
+    return 'sess_' + Date.now() + '_' + Math.random().toString(36).slice(2, 11);
+}
+
+async function registerSession(userId) {
+    currentSessionId = generateSessionId();
+    
+    try {
+        await db.collection('activeSessions').doc(userId).set({
+            sessionId: currentSessionId,
+            userId: userId,
+            startedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            lastActive: firebase.firestore.FieldValue.serverTimestamp(),
+            userAgent: navigator.userAgent,
+            ip: await getClientIP()
+        });
+        console.log('✅ Session registered:', currentSessionId);
+    } catch(e) {
+        console.error('Error registering session:', e);
+    }
+}
+
+async function checkSessionValidity(userId) {
+    try {
+        const sessionDoc = await db.collection('activeSessions').doc(userId).get();
+        
+        if (!sessionDoc.exists) {
+            console.log('No active session found, logging out');
+            return false;
+        }
+        
+        const session = sessionDoc.data();
+        
+        if (session.sessionId !== currentSessionId) {
+            console.log('⚠️ Another session detected! Logging out...');
+            showSessionConflictAlert();
+            return false;
+        }
+        
+        await db.collection('activeSessions').doc(userId).update({
+            lastActive: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        return true;
+    } catch(e) {
+        console.error('Error checking session:', e);
+        return true;
+    }
+}
+
+function showSessionConflictAlert() {
+    const alertDiv = document.createElement('div');
+    alertDiv.style.cssText = `
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: linear-gradient(135deg, #e74c3c, #c0392b);
+        color: white;
+        padding: 15px 25px;
+        border-radius: 10px;
+        z-index: 10001;
+        animation: slideDown 0.5s ease;
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        font-family: inherit;
+    `;
+    alertDiv.innerHTML = `
+        <i class="fas fa-exclamation-triangle"></i>
+        <strong>Logged out!</strong>
+        <p style="margin-top: 5px; font-size: 13px;">Your account was accessed from another device.</p>
+        <button style="margin-top: 8px; padding: 5px 15px; background: white; color: #e74c3c; border: none; border-radius: 5px; cursor: pointer;">OK</button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    alertDiv.querySelector('button').onclick = () => {
+        alertDiv.remove();
+        firebase.auth().signOut();
+    };
+    
+    setTimeout(() => {
+        if (alertDiv) alertDiv.remove();
+        firebase.auth().signOut();
+    }, 5000);
+}
+
+async function endSession(userId) {
+    if (userId && currentSessionId) {
+        try {
+            const sessionDoc = await db.collection('activeSessions').doc(userId).get();
+            if (sessionDoc.exists && sessionDoc.data().sessionId === currentSessionId) {
+                await db.collection('activeSessions').doc(userId).delete();
+                console.log('✅ Session ended for:', userId);
+            }
+        } catch(e) {
+            console.error('Error ending session:', e);
+        }
+    }
+}
+
+async function getClientIP() {
+    try {
+        const response = await fetch('https://api.ipify.org?format=json');
+        const data = await response.json();
+        return data.ip;
+    } catch(e) {
+        return 'unknown';
+    }
+}
+
+function startSessionMonitoring(userId) {
+    if (sessionCheckInterval) clearInterval(sessionCheckInterval);
+    
+    sessionCheckInterval = setInterval(async () => {
+        const user = firebase.auth().currentUser;
+        if (!user) {
+            clearInterval(sessionCheckInterval);
+            return;
+        }
+        
+        const isValid = await checkSessionValidity(userId);
+        if (!isValid) {
+            clearInterval(sessionCheckInterval);
+            firebase.auth().signOut();
+        }
+    }, 30000);
 }
 
 // ── Chat Badge Functions ─────────────────────────────────────────────
@@ -655,7 +786,7 @@ function updateUserProfile(user) {
 
 // ── Auth ─────────────────────────────────────────────────────────────
 function initAuth() {
-    firebase.auth().onAuthStateChanged(function(user){
+    firebase.auth().onAuthStateChanged(async function(user){
         if (user) {
             const username = user.email ? user.email.replace('@gamehub.local', '') : user.uid;
             console.log('🔐 Auth state changed - User:', username);
@@ -668,101 +799,119 @@ function initAuth() {
             const saved = localStorage.getItem('lastReadChat_' + user.uid);
             lastReadTimestamp = saved ? new Date(saved) : new Date();
             
-            setTimeout(() => {
-                db.collection('users').doc(username).get()
-                    .then(function(doc) {
-                        console.log('📄 User document check:', doc.exists ? 'Exists' : 'Not found');
-                        if (doc.exists && doc.data().allowed === true) {
-                            console.log('✅ User is approved, granting access');
-                            currentUserData = { 
-                                uid: user.uid, 
-                                email: user.email, 
-                                displayName: user.displayName || username,
-                                username: username
-                            };
-                            localStorage.setItem('currentUser', JSON.stringify(currentUserData));
-                            db.collection('users').doc(username).update({
-                                lastLogin: firebase.firestore.FieldValue.serverTimestamp()
-                            }).catch(() => {});
-                            updateUserProfile(user);
-                            showEl('mainApp');
-                            hideEl('loginHub');
-                            hideEl('loadingOverlay');
-                            initChat();
-                            initForum();
-                            initGameGrid();
-                            initNotifications();
-                            switchSection('home');
-                        } else {
-                            console.log('⚠️ User not approved, checking pending status...');
-                            
-                            db.collection('pendingRequests').doc(username).get()
-                                .then(function(pendingDoc) {
-                                    if (pendingDoc.exists) {
-                                        console.log('⏳ User is pending approval');
-                                        sessionStorage.setItem('userApprovalStatus', 'pending');
-                                        
-                                        if (!sessionStorage.getItem('pendingMessageShown')) {
-                                            alert('Your account is pending approval. You will be notified here when approved.');
-                                            sessionStorage.setItem('pendingMessageShown', 'true');
-                                        }
-                                        
-                                        showEl('loginHub', 'flex');
-                                        hideEl('mainApp');
-                                        hideEl('loadingOverlay');
-                                        
-                                        const pendingMessage = document.getElementById('pendingStatusMessage');
-                                        if (!pendingMessage) {
-                                            const msgDiv = document.createElement('div');
-                                            msgDiv.id = 'pendingStatusMessage';
-                                            msgDiv.style.cssText = `
-                                                background: rgba(155,89,182,0.2);
-                                                border: 1px solid rgba(155,89,182,0.4);
-                                                border-radius: 8px;
-                                                padding: 12px;
-                                                margin-top: 15px;
-                                                text-align: center;
-                                                color: #9b59b6;
-                                            `;
-                                            msgDiv.innerHTML = `
-                                                <i class="fas fa-clock"></i>
-                                                <strong>Account Pending Approval</strong>
-                                                <p style="font-size: 12px; margin-top: 5px;">Your account is waiting for admin approval. You'll be notified here when approved.</p>
-                                            `;
-                                            const loginForm = document.getElementById('loginForm');
-                                            if (loginForm) loginForm.appendChild(msgDiv);
-                                        }
-                                        
-                                        listenForApprovalNotifications(username);
-                                    } else {
-                                        console.log('❌ No pending request found for', username);
-                                        firebase.auth().signOut();
-                                        alert('Account not found. Please sign up first.');
-                                        hideEl('loadingOverlay');
-                                        showEl('loginHub', 'flex');
-                                        hideEl('mainApp');
+            setTimeout(async () => {
+                try {
+                    const doc = await db.collection('users').doc(username).get();
+                    console.log('📄 User document check:', doc.exists ? 'Exists' : 'Not found');
+                    
+                    if (doc.exists && doc.data().allowed === true) {
+                        console.log('✅ User is approved, granting access');
+                        
+                        // Check for existing sessions
+                        const existingSession = await db.collection('activeSessions').doc(user.uid).get();
+                        
+                        if (existingSession.exists && existingSession.data().sessionId !== currentSessionId) {
+                            console.log('⚠️ User already logged in elsewhere!');
+                            alert('Your account is already logged in on another device. Please log out from there first.');
+                            firebase.auth().signOut();
+                            return;
+                        }
+                        
+                        // Register new session
+                        await registerSession(user.uid);
+                        startSessionMonitoring(user.uid);
+                        
+                        currentUserData = { 
+                            uid: user.uid, 
+                            email: user.email, 
+                            displayName: user.displayName || username,
+                            username: username
+                        };
+                        localStorage.setItem('currentUser', JSON.stringify(currentUserData));
+                        db.collection('users').doc(username).update({
+                            lastLogin: firebase.firestore.FieldValue.serverTimestamp()
+                        }).catch(() => {});
+                        updateUserProfile(user);
+                        showEl('mainApp');
+                        hideEl('loginHub');
+                        hideEl('loadingOverlay');
+                        initChat();
+                        initForum();
+                        initGameGrid();
+                        initNotifications();
+                        switchSection('home');
+                    } else {
+                        console.log('⚠️ User not approved, checking pending status...');
+                        
+                        db.collection('pendingRequests').doc(username).get()
+                            .then(function(pendingDoc) {
+                                if (pendingDoc.exists) {
+                                    console.log('⏳ User is pending approval');
+                                    sessionStorage.setItem('userApprovalStatus', 'pending');
+                                    
+                                    if (!sessionStorage.getItem('pendingMessageShown')) {
+                                        alert('Your account is pending approval. You will be notified here when approved.');
+                                        sessionStorage.setItem('pendingMessageShown', 'true');
                                     }
-                                })
-                                .catch(function(err) {
-                                    console.error('Error checking pending:', err);
+                                    
+                                    showEl('loginHub', 'flex');
+                                    hideEl('mainApp');
+                                    hideEl('loadingOverlay');
+                                    
+                                    const pendingMessage = document.getElementById('pendingStatusMessage');
+                                    if (!pendingMessage) {
+                                        const msgDiv = document.createElement('div');
+                                        msgDiv.id = 'pendingStatusMessage';
+                                        msgDiv.style.cssText = `
+                                            background: rgba(155,89,182,0.2);
+                                            border: 1px solid rgba(155,89,182,0.4);
+                                            border-radius: 8px;
+                                            padding: 12px;
+                                            margin-top: 15px;
+                                            text-align: center;
+                                            color: #9b59b6;
+                                        `;
+                                        msgDiv.innerHTML = `
+                                            <i class="fas fa-clock"></i>
+                                            <strong>Account Pending Approval</strong>
+                                            <p style="font-size: 12px; margin-top: 5px;">Your account is waiting for admin approval. You'll be notified here when approved.</p>
+                                        `;
+                                        const loginForm = document.getElementById('loginForm');
+                                        if (loginForm) loginForm.appendChild(msgDiv);
+                                    }
+                                    
+                                    listenForApprovalNotifications(username);
+                                } else {
+                                    console.log('❌ No pending request found for', username);
                                     firebase.auth().signOut();
+                                    alert('Account not found. Please sign up first.');
                                     hideEl('loadingOverlay');
                                     showEl('loginHub', 'flex');
                                     hideEl('mainApp');
-                                });
-                        }
-                    })
-                    .catch(function(error) {
-                        console.error('Whitelist check error:', error);
-                        firebase.auth().signOut();
-                        alert('Authentication error. Please try again.');
-                        hideEl('loadingOverlay');
-                        showEl('loginHub', 'flex');
-                        hideEl('mainApp');
-                    });
+                                }
+                            })
+                            .catch(function(err) {
+                                console.error('Error checking pending:', err);
+                                firebase.auth().signOut();
+                                hideEl('loadingOverlay');
+                                showEl('loginHub', 'flex');
+                                hideEl('mainApp');
+                            });
+                    }
+                } catch(error) {
+                    console.error('Auth error:', error);
+                    firebase.auth().signOut();
+                    alert('Authentication error. Please try again.');
+                    hideEl('loadingOverlay');
+                    showEl('loginHub', 'flex');
+                    hideEl('mainApp');
+                }
             }, 500);
         } else {
             console.log('🔐 No user logged in');
+            if (currentUserData) {
+                await endSession(currentUserData.uid);
+            }
             currentUserData = null;
             localStorage.removeItem('currentUser');
             hideEl('mainApp');
@@ -771,6 +920,10 @@ function initAuth() {
             const pendingMsg = document.getElementById('pendingStatusMessage');
             if (pendingMsg) pendingMsg.remove();
             sessionStorage.removeItem('pendingMessageShown');
+            if (sessionCheckInterval) {
+                clearInterval(sessionCheckInterval);
+                sessionCheckInterval = null;
+            }
         }
     });
 }
@@ -975,6 +1128,13 @@ document.addEventListener('DOMContentLoaded', function(){
     if (miniChat) miniChat.addEventListener('click', function(){ hideMiniMenu(); showGameChat(); });
     var gcClose = document.getElementById('gameChatClose');
     if (gcClose) gcClose.addEventListener('click', hideGameChat);
+    
+    // Session cleanup on page unload
+    window.addEventListener('beforeunload', async () => {
+        if (currentUserData) {
+            await endSession(currentUserData.uid);
+        }
+    });
     
     showEl('loadingOverlay');
     initAuth();
