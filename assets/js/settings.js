@@ -3,24 +3,6 @@
 // Handles: Tab Cloaking, Color Theme, Panic Button, Special Themes
 // ═══════════════════════════════════════════════════════════════════
 
-// Ensure Firebase is initialized before trying to use it
-if (typeof firebase === 'undefined') {
-    console.error('[Settings] Firebase not loaded!');
-} else {
-    if (!firebase.apps.length) {
-        const firebaseConfig = {
-            apiKey: "AIzaSyDhj564xAhZSR-3sxYcR8WFqVABt0PNCcs",
-            authDomain: "github-whitelist.firebaseapp.com",
-            projectId: "github-whitelist",
-            storageBucket: "github-whitelist.firebasestorage.app",
-            messagingSenderId: "552172120402",
-            appId: "1:552172120402:web:ae23acc18163d3e1ef728b",
-            measurementId: "G-R0CWMJ8B8E"
-        };
-        firebase.initializeApp(firebaseConfig);
-    }
-}
-
 (function () {
     'use strict';
 
@@ -100,19 +82,17 @@ if (typeof firebase === 'undefined') {
             localStorage.removeItem(KEY_THEME);
         }
         
+        console.log('🎨 Applied special theme:', themeName);
         return true;
-    }
-
-    function removeSpecialTheme() {
-        const root = document.documentElement;
-        Object.keys(SPECIAL_THEMES).forEach(t => {
-            root.classList.remove(SPECIAL_THEMES[t].cssClass);
-        });
-        localStorage.removeItem(KEY_SPECIAL_THEME);
     }
 
     function initSpecialThemes() {
         const specialCards = document.querySelectorAll('.special-theme-card');
+        if (!specialCards.length) {
+            console.log('No special theme cards found');
+            return;
+        }
+        
         specialCards.forEach(card => {
             card.addEventListener('click', () => {
                 specialCards.forEach(c => c.classList.remove('active'));
@@ -125,6 +105,8 @@ if (typeof firebase === 'undefined') {
                 document.querySelectorAll('.theme-card').forEach(c => c.classList.remove('active'));
             });
         });
+        
+        console.log('✅ Special themes initialized');
     }
 
     function loadSavedSpecialTheme() {
@@ -467,11 +449,21 @@ if (typeof firebase === 'undefined') {
         updatePanicStatus();
     }
 
-    // ── Init all ─────────────────────────────────────────────────────
-    loadSavedCloak();
-    loadSavedTheme();
-    loadSavedPanic();
-    initSpecialThemes();
+    // ── Init all (run after DOM is ready) ─────────────────────────────────────
+    function init() {
+        loadSavedCloak();
+        loadSavedTheme();
+        loadSavedPanic();
+        initSpecialThemes();
+        console.log('✅ Settings initialized');
+    }
+
+    // Wait for DOM to be fully loaded
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
 
 })();
 
@@ -480,66 +472,77 @@ if (typeof firebase === 'undefined') {
 // ══════════════════════════════════════════════════════════════════════
 
 (function applyPersistedSettings() {
-    // Theme
-    var savedTheme = localStorage.getItem('gh_theme');
-    var savedSpecialTheme = localStorage.getItem('gh_special_theme');
-    
-    if (savedSpecialTheme) {
-        const SPECIAL_THEMES = {
-            miku: 'theme-miku',
-            cyberpunk: 'theme-cyberpunk',
-            darkmatter: 'theme-darkmatter'
-        };
-        const themeClass = SPECIAL_THEMES[savedSpecialTheme];
-        if (themeClass) document.documentElement.classList.add(themeClass);
-    } else if (savedTheme) {
-        try {
-            var data = JSON.parse(savedTheme);
-            var root = document.documentElement;
-            var v    = data.vars;
-            if (v.accent)   root.style.setProperty('--accent',   v.accent);
-            if (v.accent2)  root.style.setProperty('--accent2',  v.accent2);
-            if (v.bg)       root.style.setProperty('--bg',       v.bg);
-            if (v.surface)  root.style.setProperty('--surface',  v.surface);
-            if (v.surface2) root.style.setProperty('--surface2', v.surface2);
-            if (v.border)   root.style.setProperty('--border',   v.border);
-        } catch (e) {}
-    }
-
-    // Tab cloak
-    var savedCloak = localStorage.getItem('gh_cloak');
-    if (savedCloak) {
-        try {
-            var cData = JSON.parse(savedCloak);
-            if (cData.title) document.title = cData.title;
-            if (cData.favicon) {
-                var link = document.createElement('link');
-                link.id  = 'gh-dynamic-favicon';
-                link.rel = 'icon';
-                if (cData.faviconType === 'emoji') {
-                    var canvas = document.createElement('canvas');
-                    canvas.width = canvas.height = 64;
-                    var ctx = canvas.getContext('2d');
-                    ctx.font = '52px serif';
-                    ctx.textAlign    = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText(cData.favicon, 32, 36);
-                    link.href = canvas.toDataURL('image/png');
-                } else {
-                    link.href = cData.favicon;
-                }
-                document.head.appendChild(link);
-            }
-        } catch (e) {}
-    }
-
-    // Panic key
-    document.addEventListener('keydown', function (e) {
-        var panicKey = localStorage.getItem('gh_panic_key');
-        var panicUrl = localStorage.getItem('gh_panic_url');
-        if (!panicKey || !panicUrl) return;
-        if (e.key === panicKey) {
-            window.location.replace(panicUrl);
+    // Wait for DOM to be ready
+    function apply() {
+        // Theme
+        var savedTheme = localStorage.getItem('gh_theme');
+        var savedSpecialTheme = localStorage.getItem('gh_special_theme');
+        
+        if (savedSpecialTheme) {
+            const SPECIAL_THEMES = {
+                miku: 'theme-miku',
+                cyberpunk: 'theme-cyberpunk',
+                darkmatter: 'theme-darkmatter'
+            };
+            const themeClass = SPECIAL_THEMES[savedSpecialTheme];
+            if (themeClass) document.documentElement.classList.add(themeClass);
+        } else if (savedTheme) {
+            try {
+                var data = JSON.parse(savedTheme);
+                var root = document.documentElement;
+                var v    = data.vars;
+                if (v.accent)   root.style.setProperty('--accent',   v.accent);
+                if (v.accent2)  root.style.setProperty('--accent2',  v.accent2);
+                if (v.bg)       root.style.setProperty('--bg',       v.bg);
+                if (v.surface)  root.style.setProperty('--surface',  v.surface);
+                if (v.surface2) root.style.setProperty('--surface2', v.surface2);
+                if (v.border)   root.style.setProperty('--border',   v.border);
+            } catch (e) {}
         }
-    });
+
+        // Tab cloak
+        var savedCloak = localStorage.getItem('gh_cloak');
+        if (savedCloak) {
+            try {
+                var cData = JSON.parse(savedCloak);
+                if (cData.title) document.title = cData.title;
+                if (cData.favicon) {
+                    var link = document.createElement('link');
+                    link.id  = 'gh-dynamic-favicon';
+                    link.rel = 'icon';
+                    if (cData.faviconType === 'emoji') {
+                        var canvas = document.createElement('canvas');
+                        canvas.width = canvas.height = 64;
+                        var ctx = canvas.getContext('2d');
+                        ctx.font = '52px serif';
+                        ctx.textAlign    = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(cData.favicon, 32, 36);
+                        link.href = canvas.toDataURL('image/png');
+                    } else {
+                        link.href = cData.favicon;
+                    }
+                    document.head.appendChild(link);
+                }
+            } catch (e) {}
+        }
+
+        // Panic key
+        document.addEventListener('keydown', function (e) {
+            var panicKey = localStorage.getItem('gh_panic_key');
+            var panicUrl = localStorage.getItem('gh_panic_url');
+            if (!panicKey || !panicUrl) return;
+            if (e.key === panicKey) {
+                window.location.replace(panicUrl);
+            }
+        });
+        
+        console.log('✅ Persisted settings applied');
+    }
+    
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', apply);
+    } else {
+        apply();
+    }
 })();
