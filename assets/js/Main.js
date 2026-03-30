@@ -117,18 +117,21 @@ function hideEl(id) {
     if (e) e.style.display = 'none';
 }
 
-// ── Session Management (Improved) ────────────────────────────────────
+// ── Session Management (Cross-Page Persistence) ────────────────────
 function generateSessionId() {
     return 'sess_' + Date.now() + '_' + Math.random().toString(36).slice(2, 11);
 }
 
 async function registerSession(userId) {
-    // Generate a new session ID
-    currentSessionId = generateSessionId();
+    // Generate a new session ID if none exists
+    if (!currentSessionId) {
+        currentSessionId = generateSessionId();
+    }
     
-    // Store in sessionStorage for persistence across page reloads
+    // Store in sessionStorage for persistence across pages
     sessionStorage.setItem('currentSessionId', currentSessionId);
     sessionStorage.setItem('currentUserId', userId);
+    localStorage.setItem('sessionUserId', userId);
     
     try {
         // Check if there's an existing session for this user
@@ -138,7 +141,7 @@ async function registerSession(userId) {
             const existingData = existingSession.data();
             const existingSessionId = existingData.sessionId;
             
-            // If the existing session is the same as the one we have in storage, it's fine
+            // If the existing session is the same as ours, just update timestamp
             if (existingSessionId === currentSessionId) {
                 console.log('✅ Session already registered, updating timestamp');
                 await db.collection('activeSessions').doc(userId).update({
@@ -148,17 +151,19 @@ async function registerSession(userId) {
                 return true;
             }
             
-            // Different session exists - this is a conflict
-            console.log('⚠️ Existing session found:', existingSessionId);
-            console.log('⚠️ Current session:', currentSessionId);
+            // Different session exists - this is a conflict from another device/browser
+            console.log('⚠️ Another session detected from different device/browser!');
+            console.log('Existing session:', existingSessionId);
+            console.log('Current session:', currentSessionId);
             
-            // Ask user if they want to override
-            const override = confirm('Another session was detected. Do you want to force log out the other session and continue?');
+            // Show conflict alert with override option
+            const override = confirm('⚠️ Another device is using this account. Do you want to log them out and continue?\n\n(If you click Cancel, you will be logged out.)');
             
             if (override) {
                 // Override - delete old session and create new one
                 await db.collection('activeSessions').doc(userId).delete();
-                console.log('✅ Overrode old session');
+                console.log('✅ Overrode old session from other device');
+                toastMessage('Previous session was logged out. You are now the active user.', 'info');
             } else {
                 // Don't override - sign out
                 await firebase.auth().signOut();
@@ -186,13 +191,19 @@ async function registerSession(userId) {
 
 async function checkSessionValidity(userId) {
     try {
-        // Get the session from storage first
+        // Get the session from storage
         const storedSessionId = sessionStorage.getItem('currentSessionId');
         const storedUserId = sessionStorage.getItem('currentUserId');
         
-        // If no stored session, we need to re-register
-        if (!storedSessionId || storedUserId !== userId) {
-            console.log('No stored session found, need to re-register');
+        // If no stored session, this is a new page load - keep existing
+        if (!storedSessionId) {
+            console.log('No stored session found, but this could be first page load');
+            return true;
+        }
+        
+        // If stored user ID doesn't match, this is a different user - invalid
+        if (storedUserId !== userId) {
+            console.log('⚠️ Stored user ID mismatch, session invalid');
             return false;
         }
         
@@ -200,8 +211,8 @@ async function checkSessionValidity(userId) {
         const sessionDoc = await db.collection('activeSessions').doc(userId).get();
         
         if (!sessionDoc.exists) {
-            console.log('Session document not found in Firestore');
-            return false;
+            console.log('Session document not found in Firestore, will re-register');
+            return true; // Let it re-register instead of logging out
         }
         
         const session = sessionDoc.data();
@@ -209,18 +220,22 @@ async function checkSessionValidity(userId) {
         // Check if the session ID matches
         if (session.sessionId !== storedSessionId) {
             console.log('⚠️ Session ID mismatch! Firestore:', session.sessionId, 'Storage:', storedSessionId);
+            console.log('⚠️ This likely means another device logged in');
+            
+            // Show conflict alert with options
+            showSessionConflictAlert();
             return false;
         }
         
-        // Update last active timestamp
-        await db.collection('activeSessions').doc(userId).update({
+        // Update last active timestamp (don't wait for it)
+        db.collection('activeSessions').doc(userId).update({
             lastActive: firebase.firestore.FieldValue.serverTimestamp()
-        });
+        }).catch(() => {});
         
         return true;
     } catch(e) {
         console.error('Error checking session:', e);
-        return false;
+        return true; // Don't log out on error
     }
 }
 
@@ -245,28 +260,70 @@ function showSessionConflictAlert() {
         text-align: center;
         box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         font-family: inherit;
-        min-width: 300px;
+        min-width: 320px;
     `;
     alertDiv.innerHTML = `
         <i class="fas fa-exclamation-triangle" style="font-size: 20px;"></i>
-        <strong style="display: block; margin-top: 5px;">Logged out!</strong>
-        <p style="margin-top: 5px; font-size: 13px;">Your account was accessed from another device.</p>
-        <button style="margin-top: 8px; padding: 5px 15px; background: white; color: #e74c3c; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">OK</button>
+        <strong style="display: block; margin-top: 5px;">Another Device Detected!</strong>
+        <p style="margin-top: 5px; font-size: 13px;">Someone else logged into your account.</p>
+        <div style="margin-top: 10px;">
+            <button id="overrideSessionBtn" style="margin: 0 5px; padding: 5px 15px; background: white; color: #e74c3c; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">Log Them Out</button>
+            <button id="logoutSessionBtn" style="margin: 0 5px; padding: 5px 15px; background: rgba(255,255,255,0.3); color: white; border: none; border-radius: 5px; cursor: pointer;">Log Me Out</button>
+        </div>
     `;
     
     document.body.appendChild(alertDiv);
-    alertDiv.querySelector('button').onclick = () => {
+    
+    document.getElementById('overrideSessionBtn').onclick = async () => {
+        alertDiv.remove();
+        const user = firebase.auth().currentUser;
+        if (user) {
+            await db.collection('activeSessions').doc(user.uid).delete();
+            currentSessionId = generateSessionId();
+            sessionStorage.setItem('currentSessionId', currentSessionId);
+            await db.collection('activeSessions').doc(user.uid).set({
+                sessionId: currentSessionId,
+                userId: user.uid,
+                startedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                lastActive: firebase.firestore.FieldValue.serverTimestamp(),
+                userAgent: navigator.userAgent
+            });
+            toastMessage('Other device logged out. You are now the active user.', 'success');
+        }
+    };
+    
+    document.getElementById('logoutSessionBtn').onclick = () => {
         alertDiv.remove();
         firebase.auth().signOut();
     };
     
-    // Auto sign out after 5 seconds
+    // Auto sign out after 10 seconds if no action
     setTimeout(() => {
         if (alertDiv && alertDiv.parentNode) {
             alertDiv.remove();
             firebase.auth().signOut();
         }
-    }, 5000);
+    }, 10000);
+}
+
+function toastMessage(message, type) {
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: ${type === 'success' ? '#2ecc71' : '#3498db'};
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        z-index: 10002;
+        animation: slideInRight 0.3s ease;
+        font-family: inherit;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    `;
+    toast.innerHTML = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
 }
 
 async function endSession(userId) {
@@ -284,6 +341,7 @@ async function endSession(userId) {
     // Clear session storage
     sessionStorage.removeItem('currentSessionId');
     sessionStorage.removeItem('currentUserId');
+    localStorage.removeItem('sessionUserId');
 }
 
 async function getClientIP() {
@@ -308,7 +366,7 @@ function startSessionMonitoring(userId) {
         
         const isValid = await checkSessionValidity(userId);
         if (!isValid) {
-            console.log('⚠️ Session invalid, logging out');
+            console.log('⚠️ Session invalid, showing conflict alert');
             clearInterval(sessionCheckInterval);
             showSessionConflictAlert();
         }
@@ -882,7 +940,13 @@ function initAuth() {
                         
                         if (storedSessionId && storedUserId === user.uid) {
                             currentSessionId = storedSessionId;
-                            console.log('🔄 Restored session ID from storage:', currentSessionId);
+                            console.log('🔄 Restored existing session ID from storage:', currentSessionId);
+                        } else {
+                            // Generate new session ID for this page load
+                            currentSessionId = generateSessionId();
+                            sessionStorage.setItem('currentSessionId', currentSessionId);
+                            sessionStorage.setItem('currentUserId', user.uid);
+                            console.log('🆕 Created new session ID:', currentSessionId);
                         }
                         
                         try {
