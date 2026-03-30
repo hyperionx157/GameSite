@@ -109,6 +109,12 @@ if (!currentUser || !currentUser.username) {
         if (title.includes('eaglercraft')) return 'Playing Eaglercraft';
         if (title.includes('crazycattle3d')) return 'Playing Crazy Cattle 3D';
         if (title.includes('ucn')) return 'Playing Five Nights at Freddy\'s UCN';
+        if (title.includes('fnaf1')) return 'Playing Five Nights at Freddy\'s 1';
+        if (title.includes('fnaf2')) return 'Playing Five Nights at Freddy\'s 2';
+        if (title.includes('fnaf3')) return 'Playing Five Nights at Freddy\'s 3';
+        if (title.includes('fnaf4')) return 'Playing Five Nights at Freddy\'s 4';
+        if (title.includes('sister location')) return 'Playing Five Nights at Freddy\'s: Sister Location';
+        if (title.includes('pizzeria simulator')) return 'Playing Five Nights at Freddy\'s: Pizzeria Simulator';
         
         // General categories
         if (path.includes('suggestions')) return 'Viewing Content Suggestions Forum';

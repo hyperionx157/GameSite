@@ -32,7 +32,13 @@ const GAME_URLS = {
     'getaway-shootout':  'games/html5/getaway-shootout.html',
     'eaglercraft':       'games/html5/eaglercraft.html',
     'crazycattle3d':     'games/html5/crazycattle3d.html',
-    'ucn':              'games/html5/UCN.html'
+    'ucn':              'games/html5/UCN.html',
+    'fnaf1':            CLOUDFLARE_R2_BASE + '1/index.html',
+    'fnaf2':            CLOUDFLARE_R2_BASE + '2/index.html',
+    'fnaf3':            CLOUDFLARE_R2_BASE + '3/index.html',
+    'fnaf4':            CLOUDFLARE_R2_BASE + '4/index.html',
+    'fnaf-sister-location': CLOUDFLARE_R2_BASE + 'sl/index.html',
+    'fnaf-pizzeria-simulator': CLOUDFLARE_R2_BASE + 'ps/index.html'
 };
 
 // ── Firebase db — assigned inside DOMContentLoaded ──────────────────
