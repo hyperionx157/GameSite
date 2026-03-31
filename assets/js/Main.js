@@ -39,7 +39,16 @@ const GAME_URLS = {
     'fnaf4':            CLOUDFLARE_R2_BASE + '4/index.html',
     'fnaf-sister-location': CLOUDFLARE_R2_BASE + 'sl/index.html',
     'fnaf-pizzeria-simulator': CLOUDFLARE_R2_BASE + 'ps/index.html',
-    'fnaf-world':        CLOUDFLARE_R2_BASE + 'w/index.html'
+    'fnaf-world':        CLOUDFLARE_R2_BASE + 'w/index.html',
+    'terraria':          CLOUDFLARE_R2_BASE + 'terraria-wasm-build/index.html',
+    'granny':           CLOUDFLARE_R2_BASE + 'Granny-main/index.html',
+    'riddle-school-1':   CLOUDFLARE_R2_BASE + 'riddleschool.swf',
+    'riddle-school-2':   CLOUDFLARE_R2_BASE + 'riddleschool2.swf',
+    'riddle-school-3':   CLOUDFLARE_R2_BASE + 'riddleschool3.swf',
+    'riddle-school-4':   CLOUDFLARE_R2_BASE + 'riddleschool4.swf',
+    'riddle-school-5':   CLOUDFLARE_R2_BASE + 'riddleschool5.swf',
+    'riddle-transfer':   CLOUDFLARE_R2_BASE + 'riddletransfer.swf',
+    'riddle-transfer-2':  CLOUDFLARE_R2_BASE + 'riddletransfer2.swf'
 };
 
 // ── Firebase db — assigned inside DOMContentLoaded ──────────────────

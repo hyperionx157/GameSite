@@ -116,6 +116,14 @@ if (!currentUser || !currentUser.username) {
         if (title.includes('sister location')) return 'Playing Five Nights at Freddy\'s: Sister Location';
         if (title.includes('pizzeria simulator')) return 'Playing Five Nights at Freddy\'s: Pizzeria Simulator';
         if (title.includes('fnaf world')) return 'Playing Five Nights at Freddy\'s World';
+        if (title.includes('terraria')) return 'Playing Terraria';
+        if (title.includes('granny')) return 'Playing Granny';
+        if (title.includes('riddle school 1')) return 'Playing Riddle School 1';
+        if (title.includes('riddle school 2')) return 'Playing Riddle School 2';
+        if (title.includes('riddle school 3')) return 'Playing Riddle School 3';
+        if (title.includes('riddle school 4')) return 'Playing Riddle School 4';
+        if (title.includes('riddle school 5')) return 'Playing Riddle School 5';
+        if (title.includes('riddle transfer')) return 'Playing Riddle Transfer';
         
         // General categories
         if (path.includes('suggestions')) return 'Viewing Content Suggestions Forum';
