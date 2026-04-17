@@ -102,6 +102,7 @@ if (!currentUser || !currentUser.username) {
         if (title.includes('minesweeper')) return 'Playing Minesweeper';
         if (title.includes('cookie clicker')) return 'Playing Cookie Clicker';
         if (title.includes('retro bowl')) return 'Playing Retro Bowl';
+        if (title.includes('osu!')) return 'Playing osu!';
         if (title.includes('ovo modded')) return 'Playing OVO Modded';
         if (title.includes('ovo')) return 'Playing OVO';
         if (title.includes('a dance of fire and ice')) return 'Playing A Dance of Fire and Ice';
