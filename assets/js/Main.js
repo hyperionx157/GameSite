@@ -36,6 +36,7 @@ const GAME_URLS = {
     'ucn':              'games/html5/UCN.html',
     'jetpack-joyride':  'games/html5/jetpackjoyride.html',
     'ovo-modded':       'https://arjun99ab.github.io/ovo/',
+    "osu!":             "https://hyperionx157.github.io/Hyperionx157-Html-Games/osu!/index.html",
     'fnaf1':            CLOUDFLARE_R2_BASE + '1/index.html',
     'fnaf2':            CLOUDFLARE_R2_BASE + '2/index.html',
     'fnaf3':            CLOUDFLARE_R2_BASE + '3/index.html',
