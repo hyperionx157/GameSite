@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 // ── Config ─────────────────────────────────────────────────────────
-const CLOUDFLARE_R2_BASE = 'https://assets.hyperionx15.com/';
+const CLOUDFLARE_R2_BASE = 'https://assets.hyperionx15.onlnie/';
 
 const GAME_URLS = {
     'baldi-plus':        CLOUDFLARE_R2_BASE + 'baldi-plus/index.html',
@@ -16,7 +16,6 @@ const GAME_URLS = {
     'ddlc-web':          CLOUDFLARE_R2_BASE + 'ddlc-web-main/index.html',
     'undertale-yellow':  CLOUDFLARE_R2_BASE + 'undertale-yellow/index.html',
     'schoolboy-runaway': CLOUDFLARE_R2_BASE + 'schoolboy-runaway/index.html',
-    'Yandere-simulator': CLOUDFLARE_R2_BASE + 'yandere-simulator/index.html',
     'lookoutside':       CLOUDFLARE_R2_BASE + 'look-outside-main/look-outside-main/index.html',
     'pokemon-emerald':   'games/EmuGames/Pokemon - Emerald Version (U).html',
     'need-for-speed':    'games/EmuGames/Need for Speed - Most Wanted (USA, Europe) (En,Fr,De,It).html',
