@@ -118,7 +118,8 @@ if (!currentUser || !currentUser.username) {
         if (title.includes('sister location')) return 'Playing Five Nights at Freddy\'s: Sister Location';
         if (title.includes('pizzeria simulator')) return 'Playing Five Nights at Freddy\'s: Pizzeria Simulator';
         if (title.includes('fnaf world')) return 'Playing Five Nights at Freddy\'s World';
-                if (title.includes('granny')) return 'Playing Granny';
+                if (title.includes('lookoutside')) return 'Playing Look Outside';
+        if (title.includes('cuphead')) return 'Playing Cuphead';
         if (title.includes('riddle school 1')) return 'Playing Riddle School 1';
         if (title.includes('riddle school 2')) return 'Playing Riddle School 2';
         if (title.includes('riddle school 3')) return 'Playing Riddle School 3';

@@ -17,6 +17,7 @@ const GAME_URLS = {
     'undertale-yellow':  CLOUDFLARE_R2_BASE + 'undertale-yellow/index.html',
     'schoolboy-runaway': CLOUDFLARE_R2_BASE + 'schoolboy-runaway/index.html',
     'lookoutside':       CLOUDFLARE_R2_BASE + 'look-outside-main/look-outside-main/index.html',
+    'cuphead':           CLOUDFLARE_R2_BASE + 'cuphead-main/index.html',
     'pokemon-emerald':   'games/EmuGames/Pokemon - Emerald Version (U).html',
     'need-for-speed':    'games/EmuGames/Need for Speed - Most Wanted (USA, Europe) (En,Fr,De,It).html',
     'call-of-duty':      'games/EmuGames/Call of Duty - Modern Warfare 3 - Defiance (USA).html',
