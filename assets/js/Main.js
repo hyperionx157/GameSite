@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 // ── Config ─────────────────────────────────────────────────────────
-const CLOUDFLARE_R2_BASE = 'https://assets.hyperionx15.online/';
+const CLOUDFLARE_R2_BASE = 'https://assets.hyperionx17.com/';
 
 const GAME_URLS = {
     'baldi-plus':        CLOUDFLARE_R2_BASE + 'baldi-plus/index.html',
